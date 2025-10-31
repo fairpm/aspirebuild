@@ -75,7 +75,6 @@ function archive() {
 
   tar cf - ./$dir | zstd --progress > $ztar.tmp
   mv $ztar.tmp $ztar
-  rm -f $tar
 }
 
 function finalize() {
