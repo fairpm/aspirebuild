@@ -21,6 +21,7 @@
             jq
             just
             lrzip
+            perl
             php
             php84Packages.composer
             subversion
