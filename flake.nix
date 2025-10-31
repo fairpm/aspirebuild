@@ -12,12 +12,22 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in {
-        packages.php = pkgs.php;
-        devShell = pkgs.mkShell {
+        devShell = with pkgs; mkShell {
           buildInputs = [
-            pkgs.curl
-            pkgs.php
-            pkgs.php84Packages.composer
+            bash
+            coreutils
+            curl
+            gnutar
+            jq
+            just
+            lrzip
+            php
+            php84Packages.composer
+            subversion
+            sqlite
+            tzdata
+            zip
+            zstd
           ];
         };
       }
