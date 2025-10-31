@@ -3,6 +3,8 @@
 [[ -n $TRACE ]] && [[ $TRACE != 0 ]] && set -x
 
 set -o errexit
+set -o nounset
+set -o pipefail
 
 ORIG_PWD=$(pwd)
 cd $(dirname $0)/..
@@ -13,10 +15,13 @@ ARCHIVE_DIR=${ARCHIVE_DIR:-$DATA_DIR/archive}
 
 TMPDIR=${TMPDIR:-/tmp} # no underscore on this one, it's an old unixism
 
-mkdir -p $DATA_DIR $ARCHIVE_DIR
-
 PLUGINS_REMOTE=${PLUGINS_REMOTE:-https://plugins.svn.wordpress.org}
+PLUGINS_DIR=${PLUGINS_DIR:-$DATA_DIR/svn/plugins}
+
 THEMES_REMOTE=${THEMES_REMOTE:-https://themes.svn.wordpress.org}
+THEMES_DIR=${THEMES_DIR:-$DATA_DIR/svn/themes}
+
+mkdir -p $DATA_DIR $ARCHIVE_DIR $PLUGINS_DIR $THEMES_DIR
 
 YMD=$(date +%Y-%m-%d)
 
@@ -30,7 +35,8 @@ function die() {
 }
 
 function RUN() {
-  [[ -n $DRY_RUN ]] && [[ $DRY_RUN != 0 ]] && _run=echo
+  local _run=
+  [[ -n ${DRY_RUN:-} ]] && [[ $DRY_RUN != 0 ]] && _run=echo
   $_run "$@"
 }
 
