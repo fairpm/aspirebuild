@@ -1,4 +1,7 @@
+# ignore all dotfiles and dotdirs by default, with exceptions below
 .*
+!.gitignore
+!.editorconfig
 
 build/
 node_modules/
