@@ -6,6 +6,8 @@ cd $PLUGINS_DIR
 
 enforce_svn_root
 
+[[ -n ${NO_SVN_CLEANUP:-} ]] || svn cleanup
+
 repo=$(basename $(pwd))
 mkdir -p $ARCHIVE_DIR/$repo/trunks/
 
