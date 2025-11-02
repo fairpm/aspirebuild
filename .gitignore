@@ -3,7 +3,13 @@
 !.gitignore
 !.editorconfig
 
-build/
+builders/
 node_modules/
 tmp/
 vendor/
+
+*.log
+*.tmp
+
+# default output file for 'nix build'
+result
