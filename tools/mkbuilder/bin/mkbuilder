@@ -3,7 +3,7 @@
 # shellcheck disable=SC2086
 source "$(dirname $0)"/../lib/bash/prelude.bash
 
-cd $ASPIREBUILD_BASE_DIR || die "could not chdir to $ASPIREBUILD_BASE_DIR"
+cd $ASPIREBUILD_BASE_DIR
 
 build_dir=${1:-$(mktemp -d $ASPIREBUILD_BUILDER_DIR/builder.XXXXXXXXXX)}
 
