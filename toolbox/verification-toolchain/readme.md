@@ -17,5 +17,6 @@ This toolchain consists of tools for verifying the various attestations about a 
 - Third-Party labels for the package
 
 ### Provenance Attestation Checks
+- Check for VDP
 - TBD for CRA Compliance
 
