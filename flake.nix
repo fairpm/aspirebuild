@@ -12,9 +12,10 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
       in {
+        # devShell is great for 'nix develop', but running bash in a builder still uses noninteractive bash :-/
         devShell = with pkgs; mkShell {
           buildInputs = [
-            bash
+            bashInteractive
             coreutils
             curl
             git
@@ -27,10 +28,15 @@
             php84Packages.composer
             subversion
             sqlite
+            systemfd
             tzdata
+            watchexec
             zip
             zstd
           ];
+          shellHook = ''
+            export SHELL=${lib.getExe pkgs.bash}
+          '';
         };
 
         # WIP docker support
