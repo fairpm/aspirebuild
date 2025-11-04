@@ -12,6 +12,7 @@ This toolchain consists of tools for verifying the various attestations about a 
 
 ### CVE Checks
 - Check published CVE lists for package
+- Review time from exposure to patch for past CVEs
 
 ### Label Checks
 - Third-Party labels for the package
