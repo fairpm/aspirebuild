@@ -5,18 +5,15 @@
 
   inputs = {
     flake-parts.url = "github:hercules-ci/flake-parts";
+    flake-root.url = "github:srid/flake-root";
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
   outputs =
-    inputs@{ flake-parts, self, ... }:
+    inputs@{ self, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [
-        # To import an internal flake module: ./other.nix
-        # To import an external flake module:
-        #   1. Add foo to inputs
-        #   2. Add foo as a parameter to the outputs function
-        #   3. Add here: foo.flakeModule
+        inputs.flake-root.flakeModule
       ];
       systems = [
         "x86_64-linux"
@@ -63,6 +60,12 @@
         {
           devShells.default = pkgs.mkShell {
             inherit buildInputs;
+
+            inputsFrom = [ config.flake-root.devShell ]; # sets $FLAKE_ROOT
+
+            shellHook = ''
+              export ASPIREBUILD=$FLAKE_ROOT
+            '';
           };
 
           # invoke with `nix fmt flake.nix`
