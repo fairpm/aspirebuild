@@ -12,9 +12,8 @@
   outputs =
     inputs@{ self, flake-parts, ... }:
     flake-parts.lib.mkFlake { inherit inputs; } {
-      imports = [
-        inputs.flake-root.flakeModule
-      ];
+      imports = [ inputs.flake-root.flakeModule ];
+
       systems = [
         "x86_64-linux"
         "aarch64-linux"
@@ -30,6 +29,7 @@
           inputs',
           pkgs,
           system,
+          lib,
           ...
         }:
         let
@@ -45,6 +45,7 @@
             perl
             php
             php84Extensions.ffi
+            php84Extensions.intl
             php84Packages.composer
             subversion
             sqlite
@@ -65,6 +66,9 @@
               export ASPIREBUILD=$FLAKE_ROOT
               export PHP_INI_SCAN_DIR=:${self'.packages.default}/.php-ini
             '';
+
+            # in case $FLAKE_ROOT isn't available, this should also work
+            # export ASPIREBUILD=$(${lib.getExe config.flake-root.package})
           };
 
           packages.default = pkgs.stdenv.mkDerivation {
@@ -72,14 +76,16 @@
 
             name = "aspirebuild";
 
+            src = ./.;
+
             buildPhase = ''
               mkdir -p $out/.php-ini
 
               echo "extension=${pkgs.php84Extensions.ffi}/lib/php/extensions/ffi.so" > $out/.php-ini/php.ini
+              echo "extension=${pkgs.php84Extensions.intl}/lib/php/extensions/intl.so" > $out/.php-ini/php.ini
             '';
 
-            installPhase = "true"; # if installPhase is absent or blank, it tries to run 'just' for some reason
-            src = ./.;
+            installPhase = "true"; # if installPhase is absent or blank, it defaults to 'just' for some reason
           };
 
           # invoke with `nix fmt flake.nix`
