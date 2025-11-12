@@ -32,9 +32,6 @@
           system,
           ...
         }:
-        # Per-system attributes can be defined here. The self' and inputs'
-        # module parameters provide easy access to attributes of the same
-        # system.
         let
           buildInputs = with pkgs; [
             bashInteractive
@@ -47,6 +44,7 @@
             lrzip
             perl
             php
+            php84Extensions.ffi
             php84Packages.composer
             subversion
             sqlite
@@ -65,7 +63,23 @@
 
             shellHook = ''
               export ASPIREBUILD=$FLAKE_ROOT
+              export PHP_INI_SCAN_DIR=:${self'.packages.default}/.php-ini
             '';
+          };
+
+          packages.default = pkgs.stdenv.mkDerivation {
+            inherit buildInputs;
+
+            name = "aspirebuild";
+
+            buildPhase = ''
+              mkdir -p $out/.php-ini
+
+              echo "extension=${pkgs.php84Extensions.ffi}/lib/php/extensions/ffi.so" > $out/.php-ini/php.ini
+            '';
+
+            installPhase = "true"; # if installPhase is absent or blank, it tries to run 'just' for some reason
+            src = ./.;
           };
 
           # invoke with `nix fmt flake.nix`
