@@ -115,8 +115,14 @@
               export PHP_INI_SCAN_DIR=:${self'.packages.default}
             '';
 
-            # in case $FLAKE_ROOT isn't available, this should also work
-            # export ASPIREBUILD=$(${lib.getExe config.flake-root.package})
+            # in case $FLAKE_ROOT isn't available, this should also work.
+            #
+            #     export ASPIREBUILD=$(${lib.getExe config.flake-root.package})
+            #
+            # Note that the flake root is impure state, and thus should never be set in an attribute or in a file,
+            # so technically this makes our flake impure because of all of the dependencies on $ASPIREBUILD.  But since
+            # $ASPIREBUILD in the package always points into the nix store for this flake, we can get away with it
+            # while still allowing local dev to point to the working copy.
           };
 
           packages.default = pkgs.stdenv.mkDerivation {
@@ -144,7 +150,7 @@
               EOF
             '';
 
-            installPhase = "true"; # if installPhase is absent or blank, it defaults to 'just' for some reason
+            dontInstall = true;
           };
 
           # invoke with `nix fmt flake.nix`
