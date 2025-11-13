@@ -1,0 +1,29 @@
+{
+    "name": "fairpm/aspirebuild",
+    "authors": [
+        {
+            "name": "Chuck Adams",
+            "email": "chaz@chaz.works"
+        }
+    ],
+    "require": {
+        "thecodingmachine/safe": "^3.3",
+        "ext-intl": "*",
+        "ext-mbstring": "*"
+    },
+    "require-dev": {
+        "roave/security-advisories": "dev-latest",
+        "phpunit/phpunit": "^12.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "AspireBuild\\": "src",
+            "AspireBuild\\Tools\\WpPlugin\\": "tools/wp-plugin/src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\AspireBuild\\Tools\\WpPlugin": "tools/wp-plugin/tests/"
+        }
+    }
+}
