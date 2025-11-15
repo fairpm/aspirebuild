@@ -6,11 +6,13 @@
 >
     <testsuites>
         <testsuite name="All">
+            <directory>tools/sideways/tests</directory>
             <directory>tools/wp-plugin/tests</directory>
         </testsuite>
     </testsuites>
     <source>
         <include>
+            <directory>tools/sideways/src</directory>
             <directory>tools/wp-plugin/src</directory>
         </include>
     </source>

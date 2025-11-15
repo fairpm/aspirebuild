@@ -9,6 +9,6 @@ use AspireBuild\Util\Json;
 
 $parser = new HeaderParser();
 
-$parsed = $parser->readPluginHeader(file_get_contents('php://stdin'));
+$parsed = $parser->parsePluginHeaders(file_get_contents('php://stdin'));
 echo Json::encode($parsed);
 

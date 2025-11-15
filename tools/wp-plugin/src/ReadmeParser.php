@@ -2,9 +2,9 @@
 
 namespace AspireBuild\Tools\WpPlugin;
 
+use AspireBuild\Tools\Sideways\Sideways;
 use AspireBuild\Util\Regex;
 use Normalizer;
-use stdClass;
 
 // Note: this class is solely concerned with parsing the _structure_ of the readme file, including rendering markdown
 // where it's expected.  Some basic validation is done, but further sanitizing or data conversion happens later.
@@ -44,14 +44,13 @@ class ReadmeParser
     ];
 
     /** @var list<string> */
-    private array $_lines;
+    private array $input;
 
-    // returns an object so that we may substitute a real class later
-    public function parse(string $str): stdClass
+    public function parse(string $str): ParsedReadme
     {
         $str = $this->ensure_utf8($str);
 
-        $this->_lines = array_map(fn($line) => rtrim($line, "\r\n"), preg_split('!\R!u', $str));
+        $this->input = array_map(fn($line) => rtrim($line, "\r\n"), preg_split('!\R!u', $str));
 
         $defaults = [
             'name'              => '',
@@ -81,8 +80,23 @@ class ReadmeParser
         ];
 
         $fields = $this->fixup_fields($fields);
+        $fields = [...$defaults, ...$fields, '_warnings' => $this->warnings];
 
-        return (object)[...$defaults, ...$fields, '_warnings' => $this->warnings];
+        return new ParsedReadme(
+            name             : $fields['name'],
+            short_description: $fields['short_description'],
+            tags             : $fields['tags'],
+            requires_wp      : $fields['requires'], // note the prop is named requires_wp, not requires.
+            tested           : $fields['tested'],
+            requires_php     : $fields['requires_php'],
+            contributors     : $fields['contributors'],
+            stable_tag       : $fields['stable_tag'],
+            donate_link      : $fields['donate_link'],
+            license          : $fields['license'],
+            license_uri      : $fields['license_uri'],
+            sections         : $fields['sections'],
+            _warnings        : $fields['_warnings'],
+        );
     }
 
     private function ensure_utf8(string $str): string
@@ -105,7 +119,7 @@ class ReadmeParser
 
     private function parse_first_nonblank_line(): string
     {
-        while (($line = array_shift($this->_lines)) !== null) {
+        while (($line = array_shift($this->input)) !== null) {
             if (trim($line) !== '') {
                 return $line;
             }
@@ -113,10 +127,21 @@ class ReadmeParser
         return $line;
     }
 
+    // at this point i may as well use a deque.  TODO: use the ds extension and do that.
+    private function _input_put_back(string $line): void
+    {
+        array_unshift($this->input, $line);
+    }
+
+    private function _input_peek(): ?string
+    {
+        return $this->input[0] ?? null;
+    }
+
     private function eat_header_underlines(): void
     {
-        while (!empty($this->_lines) && '' === trim($this->_lines[0], '=-')) {
-            array_shift($this->_lines);
+        while (!empty($this->input) && trim($this->input[0], '=-') === '') {
+            array_shift($this->input);
         }
     }
 
@@ -126,8 +151,10 @@ class ReadmeParser
 
         $name = htmlspecialchars(strip_tags(trim($line, "#= \t\0\x0B")));
 
-        if ($this->parse_possible_header($line, true)) {
-            array_unshift($this->_lines, $line);
+        $parsed = $this->read_header($line);
+
+        if ($parsed && !isset(self::valid_headers[$parsed[0]])) {
+            $this->_input_put_back($line);
             $this->warnings['invalid_plugin_name_header'] = true;
             return '';
         }
@@ -144,7 +171,7 @@ class ReadmeParser
         $last_line_was_blank = false;
         do {
             $value = null;
-            $header = $this->parse_possible_header($line);
+            $header = $this->read_header($line);
 
             // If it doesn't look like a header value, maybe break to the next section.
             if (!$header) {
@@ -169,9 +196,9 @@ class ReadmeParser
             }
 
             $last_line_was_blank = false;
-        } while (($line = array_shift($this->_lines)) !== null);
+        } while (($line = array_shift($this->input)) !== null);
 
-        array_unshift($this->_lines, $line);
+        array_unshift($this->input, $line);
 
         return $headers;
     }
@@ -186,9 +213,9 @@ class ReadmeParser
     {
         return [
             'tags'         => $this->read_comma_separated($headers['tags'] ?? ''),
-            'requires'     => $this->extract_version($headers['requires'] ?? ''),
-            'tested'       => $this->extract_version($headers['tested'] ?? ''),
-            'requires_php' => $this->extract_version($headers['requires_php'] ?? ''),
+            'requires'     => $this->read_version($headers['requires'] ?? ''),
+            'tested'       => $this->read_version($headers['tested'] ?? ''),
+            'requires_php' => $this->read_version($headers['requires_php'] ?? ''),
             'contributors' => $this->read_comma_separated($headers['contributors'] ?? ''),
             'stable_tag'   => $this->read_stable_tag($headers['stable_tag'] ?? ''),
             'donate_link'  => $headers['donate_link'] ?? '',
@@ -249,14 +276,14 @@ class ReadmeParser
     {
         $short_description = '';
 
-        while (($line = array_shift($this->_lines)) !== null) {
+        while (($line = array_shift($this->input)) !== null) {
             $trimmed = trim($line);
             if (empty($trimmed)) {
                 continue;
             }
 
             if (Regex::matches('/^(?:==|##)/', $trimmed)) {
-                array_unshift($this->_lines, $line);
+                array_unshift($this->input, $line);
                 break;
             }
 
@@ -270,7 +297,7 @@ class ReadmeParser
         $sections = array_fill_keys(self::expected_sections, '');
         $current = '';
         $section_name = '';
-        while (($line = array_shift($this->_lines)) !== null) {
+        while (($line = array_shift($this->input)) !== null) {
             $trimmed = trim($line);
             if (empty($trimmed)) {
                 $current .= "\n";
@@ -295,7 +322,7 @@ class ReadmeParser
 
                 // If we encounter an unknown section header, include the provided Title, we'll filter it to other_notes later.
                 if (!in_array($section_name, self::expected_sections, true)) {
-                    $current .= '<h3>' . $section_title . '</h3>';
+                    $current .= "<h3>$section_title</h3>";
                     $section_name = 'other_notes';
                 }
                 continue;
@@ -311,19 +338,15 @@ class ReadmeParser
         return array_filter($sections);
     }
 
-    private function parse_possible_header(string $line, bool $only_valid = false): false|array
+    private function read_header(string $line): ?array
     {
         if (!str_contains($line, ':') || str_starts_with($line, '#') || str_starts_with($line, '=')) {
-            return false;
+            return null;
         }
 
         [$key, $value] = explode(':', $line, 2);
         $key = strtolower(trim($key, " \t*-\r\n"));
         $value = trim($value, " \t*-\r\n");
-
-        if ($only_valid && !isset(self::valid_headers[$key])) {
-            return false;
-        }
 
         return [$key, $value];
     }
@@ -340,9 +363,9 @@ class ReadmeParser
         return $tag;
     }
 
-    private function extract_version(string $str): string
+    private function read_version(string $str): string
     {
-        return Regex::extract('(\d+(\.\d+){1,2})', $str);
+        return Regex::extract('(\d+(\.\d+){1,2})', $str) ?? '';
     }
 
     private function render_markdown(string $text): string
