@@ -2,7 +2,6 @@
 
 /** @noinspection PhpSameParameterValueInspection */
 /** @noinspection PhpUnused */
-/** @noinspection PhpUnusedPrivateMethodInspection */
 /** @noinspection RegExpSimplifiable */
 
 // Sideways Markdown Parser [WORKING TITLE]
@@ -35,6 +34,8 @@
 
 namespace AspireBuild\Tools\WpPlugin;
 
+use Closure;
+
 final class Sideways
 {
     public function __construct(
@@ -57,7 +58,9 @@ final class Sideways
 
     //region Private API
 
-    private array $DefinitionData = [];
+    private array $DefinitionData = []; // FIXME: this state is the one reason this class can't be readonly
+
+    //region Constant Definitions
 
     /** @var list<string> */
     private const array specialCharacters = [
@@ -203,134 +206,58 @@ final class Sideways
     /** @var list<string> */
     private const array unmarkedBlockTypes = ['Code'];
 
-    private function lines(array $lines): string
+    //endregion
+
+    //region Quasi OOP Dispatch
+
+    private function continueMethod(string $Type): ?Closure
     {
-        $CurrentBlock = null;
-
-        foreach ($lines as $line) {
-            if (rtrim($line) === '') {
-                if (isset($CurrentBlock)) {
-                    $CurrentBlock['interrupted'] = true;
-                }
-
-                continue;
-            }
-
-            if (str_contains($line, "\t")) {
-                $parts = explode("\t", $line);
-
-                $line = $parts[0];
-
-                unset($parts[0]);
-
-                foreach ($parts as $part) {
-                    $shortage = 4 - mb_strlen($line, 'utf-8') % 4;
-
-                    $line .= str_repeat(' ', $shortage);
-                    $line .= $part;
-                }
-            }
-
-            $indent = 0;
-
-            while (isset($line[$indent]) and $line[$indent] === ' ') {
-                $indent++;
-            }
-
-            $text = $indent > 0 ? substr($line, $indent) : $line;
-
-            $Line = ['body' => $line, 'indent' => $indent, 'text' => $text];
-
-            if (isset($CurrentBlock['continuable'])) {
-                $Block = $this->{'block' . $CurrentBlock['type'] . 'Continue'}($Line, $CurrentBlock);
-
-                if (isset($Block)) {
-                    $CurrentBlock = $Block;
-
-                    continue;
-                }
-
-                if ($this->isBlockCompletable($CurrentBlock['type'])) {
-                    $CurrentBlock = $this->{'block' . $CurrentBlock['type'] . 'Complete'}($CurrentBlock);
-                }
-            }
-
-            $marker = $text[0];
-
-            $blockTypes = self::unmarkedBlockTypes;
-
-            if (isset(self::BlockTypes[$marker])) {
-                foreach (self::BlockTypes[$marker] as $blockType) {
-                    $blockTypes [] = $blockType;
-                }
-            }
-
-            foreach ($blockTypes as $blockType) {
-                $Block = $this->{'block' . $blockType}($Line, $CurrentBlock);
-
-                if (isset($Block)) {
-                    $Block['type'] = $blockType;
-
-                    if (!isset($Block['identified'])) {
-                        $Blocks [] = $CurrentBlock;
-
-                        $Block['identified'] = true;
-                    }
-
-                    if ($this->isBlockContinuable($blockType)) {
-                        $Block['continuable'] = true;
-                    }
-
-                    $CurrentBlock = $Block;
-
-                    continue 2;
-                }
-            }
-
-            if (isset($CurrentBlock) and !isset($CurrentBlock['type']) and !isset($CurrentBlock['interrupted'])) {
-                $CurrentBlock['element']['text'] .= "\n" . $text;
-            } else {
-                $Blocks [] = $CurrentBlock;
-
-                $CurrentBlock = $this->paragraph($Line);
-
-                $CurrentBlock['identified'] = true;
-            }
-        }
-
-        if (isset($CurrentBlock['continuable']) and $this->isBlockCompletable($CurrentBlock['type'])) {
-            $CurrentBlock = $this->{'block' . $CurrentBlock['type'] . 'Complete'}($CurrentBlock);
-        }
-
-        $Blocks [] = $CurrentBlock;
-
-        unset($Blocks[0]);
-
-        $markup = '';
-
-        foreach ($Blocks as $Block) {
-            if (isset($Block['hidden'])) {
-                continue;
-            }
-
-            $markup .= "\n";
-            $markup .= $Block['markup'] ?? $this->element($Block['element']);
-        }
-
-        $markup .= "\n";
-
-        return $markup;
+        /** @noinspection PhpExpressionAlwaysNullInspection (false positive) */
+        return match ($Type) {
+            'Code' => $this->blockCodeContinue(...),
+            'Comment' => $this->blockCommentContinue(...),
+            'FencedCode' => $this->blockFencedCodeContinue(...),
+            'List' => $this->blockListContinue(...),
+            'Markup' => $this->blockMarkupContinue(...),
+            'Quote' => $this->blockQuoteContinue(...),
+            'Table' => $this->blockTableContinue(...),
+            default => null,
+        };
     }
 
-    private function isBlockContinuable(string $Type): bool
+    private function completeMethod(string $Type): ?Closure
     {
-        return method_exists($this, 'block' . $Type . 'Continue');
+        /** @noinspection PhpExpressionAlwaysNullInspection (false positive) */
+        return match ($Type) {
+            'Code' => $this->blockCodeComplete(...),
+            'FencedCode' => $this->blockFencedCodeComplete(...),
+            'List' => $this->blockListComplete(...),
+            default => null,
+        };
     }
 
-    private function isBlockCompletable(string $Type): bool
+    private function inlineMethod(string $Type): ?Closure
     {
-        return method_exists($this, 'block' . $Type . 'Complete');
+        /** @noinspection PhpExpressionAlwaysNullInspection (false positive) */
+        return match ($Type) {
+            'Emphasis' => $this->inlineEmphasis(...),
+            'EscapeSequence' => $this->inlineEscapeSequence(...),
+            'Image' => $this->inlineImage(...),
+            'Link' => $this->inlineLink(...),
+            'SpecialCharacter' => $this->inlineSpecialCharacter(...),
+            'Strikethrough' => $this->inlineStrikethrough(...),
+            'Url' => $this->inlineUrl(...),
+            'UrlTag' => $this->inlineUrlTag(...),
+            'EmailTag' => $this->inlineEmailTag(...),
+            'Code' => $this->inlineCode(...),
+            'Markup' => $this->inlineMarkup(...),
+            default => null,
+        };
     }
+
+    //endregion
+
+    //region Quasi-OOP implementations
 
     private function blockCode(array $Line, ?array $Block = null): ?array
     {
@@ -344,7 +271,7 @@ final class Sideways
             return [
                 'element' => [
                     'name'    => 'pre',
-                    'handler' => 'element',
+                    'handler' => $this->element(...),
                     'text'    => [
                         'name' => 'code',
                         'text' => $text,
@@ -454,7 +381,7 @@ final class Sideways
                 'char'    => $Line['text'][0],
                 'element' => [
                     'name'    => 'pre',
-                    'handler' => 'element',
+                    'handler' => $this->element(...),
                     'text'    => $Element,
                 ],
             ];
@@ -515,7 +442,7 @@ final class Sideways
                 'element' => [
                     'name'    => 'h' . min(6, $level),
                     'text'    => $text,
-                    'handler' => 'line',
+                    'handler' => $this->line(...),
                 ],
             ];
         }
@@ -532,7 +459,7 @@ final class Sideways
                 'pattern' => $pattern,
                 'element' => [
                     'name'    => $name,
-                    'handler' => 'elements',
+                    'handler' => $this->elements(...),
                 ],
             ];
 
@@ -546,7 +473,7 @@ final class Sideways
 
             $Block['li'] = [
                 'name'    => 'li',
-                'handler' => 'li',
+                'handler' => $this->li(...),
                 'text'    => [
                     $matches[2],
                 ],
@@ -577,7 +504,7 @@ final class Sideways
 
             $Block['li'] = [
                 'name'    => 'li',
-                'handler' => 'li',
+                'handler' => $this->li(...),
                 'text'    => [
                     $text,
                 ],
@@ -633,7 +560,7 @@ final class Sideways
             return [
                 'element' => [
                     'name'    => 'blockquote',
-                    'handler' => 'lines',
+                    'handler' => $this->lines(...),
                     'text'    => (array)$matches[1],
                 ],
             ];
@@ -839,7 +766,7 @@ final class Sideways
                 $HeaderElement = [
                     'name'    => 'th',
                     'text'    => $headerCell,
-                    'handler' => 'line',
+                    'handler' => $this->line(...),
                 ];
 
                 if (isset($alignments[$index])) {
@@ -858,24 +785,24 @@ final class Sideways
                 'identified' => true,
                 'element'    => [
                     'name'    => 'table',
-                    'handler' => 'elements',
+                    'handler' => $this->elements(...),
                 ],
             ];
 
             $Block['element']['text'] [] = [
                 'name'    => 'thead',
-                'handler' => 'elements',
+                'handler' => $this->elements(...),
             ];
 
             $Block['element']['text'] [] = [
                 'name'    => 'tbody',
-                'handler' => 'elements',
+                'handler' => $this->elements(...),
                 'text'    => [],
             ];
 
             $Block['element']['text'][0]['text'] [] = [
                 'name'    => 'tr',
-                'handler' => 'elements',
+                'handler' => $this->elements(...),
                 'text'    => $HeaderElements,
             ];
 
@@ -905,7 +832,7 @@ final class Sideways
 
                 $Element = [
                     'name'    => 'td',
-                    'handler' => 'line',
+                    'handler' => $this->line(...),
                     'text'    => $cell,
                 ];
 
@@ -920,7 +847,7 @@ final class Sideways
 
             $Element = [
                 'name'    => 'tr',
-                'handler' => 'elements',
+                'handler' => $this->elements(...),
                 'text'    => $Elements,
             ];
 
@@ -937,7 +864,7 @@ final class Sideways
             'element' => [
                 'name'    => 'p',
                 'text'    => $Line['text'],
-                'handler' => 'line',
+                'handler' => $this->line(...),
             ],
         ];
     }
@@ -979,7 +906,7 @@ final class Sideways
                     continue;
                 }
 
-                $Inline = $this->{'inline' . $inlineType}($Excerpt);
+                $Inline = $this->inlineMethod($inlineType)($Excerpt);
 
                 if (!isset($Inline)) {
                     continue;
@@ -1096,7 +1023,7 @@ final class Sideways
             'extent'  => strlen($matches[0]),
             'element' => [
                 'name'    => $emphasis,
-                'handler' => 'line',
+                'handler' => $this->line(...),
                 'text'    => $matches[1],
             ],
         ];
@@ -1270,7 +1197,7 @@ final class Sideways
                 'element' => [
                     'name'    => 'del',
                     'text'    => $matches[1],
-                    'handler' => 'line',
+                    'handler' => $this->line(...),
                 ],
             ];
         }
@@ -1372,7 +1299,7 @@ final class Sideways
             }
 
             if (isset($Element['handler'])) {
-                $markup .= $this->{$Element['handler']}($text, $Element['nonNestables']);
+                $markup .= $Element['handler']($text, $Element['nonNestables']);
             } elseif (!$permitRawHtml) {
                 $markup .= self::escape($text, true);
             } else {
@@ -1418,6 +1345,143 @@ final class Sideways
         return $markup;
     }
 
+    private function lines(array $lines): string
+    {
+        $CurrentBlock = null;
+
+        foreach ($lines as $line) {
+            if (rtrim($line) === '') {
+                if (isset($CurrentBlock)) {
+                    $CurrentBlock['interrupted'] = true;
+                }
+
+                continue;
+            }
+
+            if (str_contains($line, "\t")) {
+                $parts = explode("\t", $line);
+
+                $line = $parts[0];
+
+                unset($parts[0]);
+
+                foreach ($parts as $part) {
+                    $shortage = 4 - mb_strlen($line, 'utf-8') % 4;
+
+                    $line .= str_repeat(' ', $shortage);
+                    $line .= $part;
+                }
+            }
+
+            $indent = 0;
+
+            while (isset($line[$indent]) and $line[$indent] === ' ') {
+                $indent++;
+            }
+
+            $text = $indent > 0 ? substr($line, $indent) : $line;
+
+            $Line = ['body' => $line, 'indent' => $indent, 'text' => $text];
+
+            if (isset($CurrentBlock['continuable'])) {
+                $Block = $this->continueMethod($CurrentBlock['type'])($Line, $CurrentBlock);
+
+                if (isset($Block)) {
+                    $CurrentBlock = $Block;
+
+                    continue;
+                }
+
+                if ($method = $this->completeMethod($CurrentBlock['type'])) {
+                    $CurrentBlock = $method($CurrentBlock);
+                }
+            }
+
+            $marker = $text[0];
+
+            $blockTypes = self::unmarkedBlockTypes;
+
+            if (isset(self::BlockTypes[$marker])) {
+                foreach (self::BlockTypes[$marker] as $blockType) {
+                    $blockTypes [] = $blockType;
+                }
+            }
+
+            foreach ($blockTypes as $blockType) {
+                $method = match ($blockType) {
+                    'Code' => $this->blockCode(...),
+                    'Comment' => $this->blockComment(...),
+                    'FencedCode' => $this->blockFencedCode(...),
+                    'Header' => $this->blockHeader(...),
+                    'List' => $this->blockList(...),
+                    'Markup' => $this->blockMarkup(...),
+                    'Quote' => $this->blockQuote(...),
+                    'Reference' => $this->blockReference(...),
+                    'Rule' => $this->blockRule(...),
+                    'SetextHeader' => $this->blockSetextHeader(...),
+                    'Table' => $this->blockTable(...),
+                };
+
+                $Block = $method($Line, $CurrentBlock);
+
+                if (isset($Block)) {
+                    $Block['type'] = $blockType;
+
+                    if (!isset($Block['identified'])) {
+                        $Blocks [] = $CurrentBlock;
+
+                        $Block['identified'] = true;
+                    }
+
+                    if ($this->continueMethod($blockType)) {
+                        $Block['continuable'] = true;
+                    }
+
+                    $CurrentBlock = $Block;
+
+                    continue 2;
+                }
+            }
+
+            if (isset($CurrentBlock) and !isset($CurrentBlock['type']) and !isset($CurrentBlock['interrupted'])) {
+                $CurrentBlock['element']['text'] .= "\n" . $text;
+            } else {
+                $Blocks [] = $CurrentBlock;
+
+                $CurrentBlock = $this->paragraph($Line);
+
+                $CurrentBlock['identified'] = true;
+            }
+        }
+
+        if (isset($CurrentBlock['continuable']) and ($method = $this->completeMethod($CurrentBlock['type']))) {
+            $CurrentBlock = $method($CurrentBlock);
+        }
+
+        $Blocks [] = $CurrentBlock;
+
+        unset($Blocks[0]);
+
+        $markup = '';
+
+        foreach ($Blocks as $Block) {
+            if (isset($Block['hidden'])) {
+                continue;
+            }
+
+            $markup .= "\n";
+            $markup .= $Block['markup'] ?? $this->element($Block['element']);
+        }
+
+        $markup .= "\n";
+
+        return $markup;
+    }
+
+    //endregion
+
+    //region Deprecated Methods
+
     private function sanitiseElement(array $Element): array
     {
         static $goodAttribute = '/^[a-zA-Z0-9][a-zA-Z0-9-_]*+$/';
@@ -1457,11 +1521,6 @@ final class Sideways
         return $Element;
     }
 
-    private static function escape(string $text, bool $allowQuotes = false): string
-    {
-        return htmlspecialchars($text, $allowQuotes ? ENT_NOQUOTES : ENT_QUOTES, 'UTF-8');
-    }
-
     private static function striAtStart(string $string, string $needle): bool
     {
         $len = strlen($needle);
@@ -1472,6 +1531,17 @@ final class Sideways
 
         return stripos($string, strtolower($needle)) === 0;
     }
+
+    //endregion
+
+    //region Other
+
+    private static function escape(string $text, bool $allowQuotes = false): string
+    {
+        return htmlspecialchars($text, $allowQuotes ? ENT_NOQUOTES : ENT_QUOTES, 'UTF-8');
+    }
+
+    //endregion
 
     //endregion
 }
