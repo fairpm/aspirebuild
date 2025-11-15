@@ -370,9 +370,7 @@ class ReadmeParser
 
     private function render_markdown(string $text): string
     {
-        $parser = new Sideways();
-        $parser->setSafeMode(true);
-        return $parser->text($text);
+        return new Sideways(safeMode: true)->text($text);
 
         // return new Sideways(source: $text, urlsLinked: true, safeMode: true)->toHtml();
     }

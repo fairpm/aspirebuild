@@ -17,7 +17,6 @@ namespace AspireBuild\Tools\Sideways;
 
 use DOMDocument;
 use DOMElement;
-use Exception;
 
 class SidewaysExtra extends Sideways
 {
@@ -27,10 +26,23 @@ class SidewaysExtra extends Sideways
 
     # ~
 
-    function __construct()
-    {
-        $this->BlockTypes[':'] []= 'DefinitionList';
-        $this->BlockTypes['*'] []= 'Abbreviation';
+    function __construct(
+        bool $breaksEnabled = false,
+        bool $markupEscaped = false,
+        bool $urlsLinked = true,
+        bool $safeMode = false,
+        bool $strictMode = false,
+    ) {
+        parent::__construct(
+            breaksEnabled: $breaksEnabled,
+            markupEscaped: $markupEscaped,
+            urlsLinked   : $urlsLinked,
+            safeMode     : $safeMode,
+            strictMode   : $strictMode
+        );
+
+        $this->BlockTypes[':'] [] = 'DefinitionList';
+        $this->BlockTypes['*'] [] = 'Abbreviation';
 
         # identify footnote definitions before reference definitions
         array_unshift($this->BlockTypes['['], 'Footnote');
@@ -58,8 +70,7 @@ class SidewaysExtra extends Sideways
 
         # add footnotes
 
-        if (isset($this->DefinitionData['Footnote']))
-        {
+        if (isset($this->DefinitionData['Footnote'])) {
             $Element = $this->buildFootnoteElement();
 
             $markup .= "\n" . $this->element($Element);
@@ -77,13 +88,12 @@ class SidewaysExtra extends Sideways
 
     protected function blockAbbreviation($Line)
     {
-        if (preg_match('/^\*\[(.+?)\]:[ ]*(.+?)[ ]*$/', $Line['text'], $matches))
-        {
+        if (preg_match('/^\*\[(.+?)\]:[ ]*(.+?)[ ]*$/', $Line['text'], $matches)) {
             $this->DefinitionData['Abbreviation'][$matches[1]] = $matches[2];
 
-            $Block = array(
+            $Block = [
                 'hidden' => true,
-            );
+            ];
 
             return $Block;
         }
@@ -94,13 +104,12 @@ class SidewaysExtra extends Sideways
 
     protected function blockFootnote($Line)
     {
-        if (preg_match('/^\[\^(.+?)\]:[ ]?(.*)$/', $Line['text'], $matches))
-        {
-            $Block = array(
-                'label' => $matches[1],
-                'text' => $matches[2],
+        if (preg_match('/^\[\^(.+?)\]:[ ]?(.*)$/', $Line['text'], $matches)) {
+            $Block = [
+                'label'  => $matches[1],
+                'text'   => $matches[2],
                 'hidden' => true,
-            );
+            ];
 
             return $Block;
         }
@@ -108,22 +117,17 @@ class SidewaysExtra extends Sideways
 
     protected function blockFootnoteContinue($Line, $Block)
     {
-        if ($Line['text'][0] === '[' and preg_match('/^\[\^(.+?)\]:/', $Line['text']))
-        {
+        if ($Line['text'][0] === '[' and preg_match('/^\[\^(.+?)\]:/', $Line['text'])) {
             return;
         }
 
-        if (isset($Block['interrupted']))
-        {
-            if ($Line['indent'] >= 4)
-            {
+        if (isset($Block['interrupted'])) {
+            if ($Line['indent'] >= 4) {
                 $Block['text'] .= "\n\n" . $Line['text'];
 
                 return $Block;
             }
-        }
-        else
-        {
+        } else {
             $Block['text'] .= "\n" . $Line['text'];
 
             return $Block;
@@ -132,11 +136,11 @@ class SidewaysExtra extends Sideways
 
     protected function blockFootnoteComplete($Block)
     {
-        $this->DefinitionData['Footnote'][$Block['label']] = array(
-            'text' => $Block['text'],
-            'count' => null,
+        $this->DefinitionData['Footnote'][$Block['label']] = [
+            'text'   => $Block['text'],
+            'count'  => null,
             'number' => null,
-        );
+        ];
 
         return $Block;
     }
@@ -146,28 +150,26 @@ class SidewaysExtra extends Sideways
 
     protected function blockDefinitionList($Line, $Block)
     {
-        if ( ! isset($Block) or $Block['type'] !== 'Paragraph')
-        {
+        if (!isset($Block) or $Block['type'] !== 'Paragraph') {
             return;
         }
 
-        $Element = array(
-            'name' => 'dl',
-            'elements' => array(),
-        );
+        $Element = [
+            'name'     => 'dl',
+            'elements' => [],
+        ];
 
         $terms = explode("\n", $Block['element']['handler']['argument']);
 
-        foreach ($terms as $term)
-        {
-            $Element['elements'] []= array(
-                'name' => 'dt',
-                'handler' => array(
-                    'function' => 'lineElements',
-                    'argument' => $term,
-                    'destination' => 'elements'
-                ),
-            );
+        foreach ($terms as $term) {
+            $Element['elements'] [] = [
+                'name'    => 'dt',
+                'handler' => [
+                    'function'    => 'lineElements',
+                    'argument'    => $term,
+                    'destination' => 'elements',
+                ],
+            ];
         }
 
         $Block['element'] = $Element;
@@ -179,21 +181,16 @@ class SidewaysExtra extends Sideways
 
     protected function blockDefinitionListContinue($Line, array $Block)
     {
-        if ($Line['text'][0] === ':')
-        {
+        if ($Line['text'][0] === ':') {
             $Block = $this->addDdElement($Line, $Block);
 
             return $Block;
-        }
-        else
-        {
-            if (isset($Block['interrupted']) and $Line['indent'] === 0)
-            {
+        } else {
+            if (isset($Block['interrupted']) and $Line['indent'] === 0) {
                 return;
             }
 
-            if (isset($Block['interrupted']))
-            {
+            if (isset($Block['interrupted'])) {
                 $Block['dd']['handler']['function'] = 'textElements';
                 $Block['dd']['handler']['argument'] .= "\n\n";
 
@@ -217,13 +214,15 @@ class SidewaysExtra extends Sideways
     {
         $Block = parent::blockHeader($Line);
 
-        if ($Block !== null && preg_match('/[ #]*{('.$this->regexAttribute.'+)}[ ]*$/', $Block['element']['handler']['argument'], $matches, PREG_OFFSET_CAPTURE))
-        {
+        if ($Block !== null
+            && preg_match('/[ #]*{(' . $this->regexAttribute . '+)}[ ]*$/', $Block['element']['handler']['argument'],
+                $matches, PREG_OFFSET_CAPTURE)) {
             $attributeString = $matches[1][0];
 
             $Block['element']['attributes'] = $this->parseAttributeData($attributeString);
 
-            $Block['element']['handler']['argument'] = substr($Block['element']['handler']['argument'], 0, $matches[0][1]);
+            $Block['element']['handler']['argument'] = substr($Block['element']['handler']['argument'], 0,
+                $matches[0][1]);
         }
 
         return $Block;
@@ -234,48 +233,39 @@ class SidewaysExtra extends Sideways
 
     protected function blockMarkup($Line)
     {
-        if ($this->markupEscaped or $this->safeMode)
-        {
+        if ($this->markupEscaped or $this->safeMode) {
             return;
         }
 
-        if (preg_match('/^<(\w[\w-]*)(?:[ ]*'.$this->regexHtmlAttribute.')*[ ]*(\/)?>/', $Line['text'], $matches))
-        {
+        if (preg_match('/^<(\w[\w-]*)(?:[ ]*' . $this->regexHtmlAttribute . ')*[ ]*(\/)?>/', $Line['text'], $matches)) {
             $element = strtolower($matches[1]);
 
-            if (in_array($element, $this->textLevelElements))
-            {
+            if (in_array($element, $this->textLevelElements)) {
                 return;
             }
 
-            $Block = array(
-                'name' => $matches[1],
-                'depth' => 0,
-                'element' => array(
-                    'rawHtml' => $Line['text'],
+            $Block = [
+                'name'    => $matches[1],
+                'depth'   => 0,
+                'element' => [
+                    'rawHtml'   => $Line['text'],
                     'autobreak' => true,
-                ),
-            );
+                ],
+            ];
 
             $length = strlen($matches[0]);
             $remainder = substr($Line['text'], $length);
 
-            if (trim($remainder) === '')
-            {
-                if (isset($matches[2]) or in_array($matches[1], $this->voidElements))
-                {
+            if (trim($remainder) === '') {
+                if (isset($matches[2]) or in_array($matches[1], $this->voidElements)) {
                     $Block['closed'] = true;
                     $Block['void'] = true;
                 }
-            }
-            else
-            {
-                if (isset($matches[2]) or in_array($matches[1], $this->voidElements))
-                {
+            } else {
+                if (isset($matches[2]) or in_array($matches[1], $this->voidElements)) {
                     return;
                 }
-                if (preg_match('/<\/'.$matches[1].'>[ ]*$/i', $remainder))
-                {
+                if (preg_match('/<\/' . $matches[1] . '>[ ]*$/i', $remainder)) {
                     $Block['closed'] = true;
                 }
             }
@@ -286,43 +276,38 @@ class SidewaysExtra extends Sideways
 
     protected function blockMarkupContinue($Line, array $Block)
     {
-        if (isset($Block['closed']))
-        {
+        if (isset($Block['closed'])) {
             return;
         }
 
-        if (preg_match('/^<'.$Block['name'].'(?:[ ]*'.$this->regexHtmlAttribute.')*[ ]*>/i', $Line['text'])) # open
+        if (preg_match('/^<' . $Block['name'] . '(?:[ ]*' . $this->regexHtmlAttribute . ')*[ ]*>/i',
+            $Line['text'])) # open
         {
-            $Block['depth'] ++;
+            $Block['depth']++;
         }
 
-        if (preg_match('/(.*?)<\/'.$Block['name'].'>[ ]*$/i', $Line['text'], $matches)) # close
+        if (preg_match('/(.*?)<\/' . $Block['name'] . '>[ ]*$/i', $Line['text'], $matches)) # close
         {
-            if ($Block['depth'] > 0)
-            {
-                $Block['depth'] --;
-            }
-            else
-            {
+            if ($Block['depth'] > 0) {
+                $Block['depth']--;
+            } else {
                 $Block['closed'] = true;
             }
         }
 
-        if (isset($Block['interrupted']))
-        {
+        if (isset($Block['interrupted'])) {
             $Block['element']['rawHtml'] .= "\n";
             unset($Block['interrupted']);
         }
 
-        $Block['element']['rawHtml'] .= "\n".$Line['body'];
+        $Block['element']['rawHtml'] .= "\n" . $Line['body'];
 
         return $Block;
     }
 
     protected function blockMarkupComplete($Block)
     {
-        if ( ! isset($Block['void']))
-        {
+        if (!isset($Block['void'])) {
             $Block['element']['rawHtml'] = $this->processTag($Block['element']['rawHtml']);
         }
 
@@ -336,13 +321,15 @@ class SidewaysExtra extends Sideways
     {
         $Block = parent::blockSetextHeader($Line, $Block);
 
-        if ($Block !== null && preg_match('/[ ]*{('.$this->regexAttribute.'+)}[ ]*$/', $Block['element']['handler']['argument'], $matches, PREG_OFFSET_CAPTURE))
-        {
+        if ($Block !== null
+            && preg_match('/[ ]*{(' . $this->regexAttribute . '+)}[ ]*$/', $Block['element']['handler']['argument'],
+                $matches, PREG_OFFSET_CAPTURE)) {
             $attributeString = $matches[1][0];
 
             $Block['element']['attributes'] = $this->parseAttributeData($attributeString);
 
-            $Block['element']['handler']['argument'] = substr($Block['element']['handler']['argument'], 0, $matches[0][1]);
+            $Block['element']['handler']['argument'] = substr($Block['element']['handler']['argument'], 0,
+                $matches[0][1]);
         }
 
         return $Block;
@@ -357,36 +344,33 @@ class SidewaysExtra extends Sideways
 
     protected function inlineFootnoteMarker($Excerpt)
     {
-        if (preg_match('/^\[\^(.+?)\]/', $Excerpt['text'], $matches))
-        {
+        if (preg_match('/^\[\^(.+?)\]/', $Excerpt['text'], $matches)) {
             $name = $matches[1];
 
-            if ( ! isset($this->DefinitionData['Footnote'][$name]))
-            {
+            if (!isset($this->DefinitionData['Footnote'][$name])) {
                 return;
             }
 
-            $this->DefinitionData['Footnote'][$name]['count'] ++;
+            $this->DefinitionData['Footnote'][$name]['count']++;
 
-            if ( ! isset($this->DefinitionData['Footnote'][$name]['number']))
-            {
-                $this->DefinitionData['Footnote'][$name]['number'] = ++ $this->footnoteCount; # » &
+            if (!isset($this->DefinitionData['Footnote'][$name]['number'])) {
+                $this->DefinitionData['Footnote'][$name]['number'] = ++$this->footnoteCount; # » &
             }
 
-            $Element = array(
-                'name' => 'sup',
-                'attributes' => array('id' => 'fnref'.$this->DefinitionData['Footnote'][$name]['count'].':'.$name),
-                'element' => array(
-                    'name' => 'a',
-                    'attributes' => array('href' => '#fn:'.$name, 'class' => 'footnote-ref'),
-                    'text' => $this->DefinitionData['Footnote'][$name]['number'],
-                ),
-            );
+            $Element = [
+                'name'       => 'sup',
+                'attributes' => ['id' => 'fnref' . $this->DefinitionData['Footnote'][$name]['count'] . ':' . $name],
+                'element'    => [
+                    'name'       => 'a',
+                    'attributes' => ['href' => '#fn:' . $name, 'class' => 'footnote-ref'],
+                    'text'       => $this->DefinitionData['Footnote'][$name]['number'],
+                ],
+            ];
 
-            return array(
-                'extent' => strlen($matches[0]),
+            return [
+                'extent'  => strlen($matches[0]),
                 'element' => $Element,
-            );
+            ];
         }
     }
 
@@ -401,8 +385,7 @@ class SidewaysExtra extends Sideways
 
         $remainder = $Link !== null ? substr($Excerpt['text'], $Link['extent']) : '';
 
-        if (preg_match('/^[ ]*{('.$this->regexAttribute.'+)}/', $remainder, $matches))
-        {
+        if (preg_match('/^[ ]*{(' . $this->regexAttribute . '+)}/', $remainder, $matches)) {
             $Link['element']['attributes'] += $this->parseAttributeData($matches[1]);
 
             $Link['extent'] += strlen($matches[0]);
@@ -420,20 +403,19 @@ class SidewaysExtra extends Sideways
 
     protected function insertAbreviation(array $Element)
     {
-        if (isset($Element['text']))
-        {
+        if (isset($Element['text'])) {
             $Element['elements'] = self::pregReplaceElements(
-                '/\b'.preg_quote($this->currentAbreviation, '/').'\b/',
-                array(
-                    array(
-                        'name' => 'abbr',
-                        'attributes' => array(
+                '/\b' . preg_quote($this->currentAbreviation, '/') . '\b/',
+                [
+                    [
+                        'name'       => 'abbr',
+                        'attributes' => [
                             'title' => $this->currentMeaning,
-                        ),
-                        'text' => $this->currentAbreviation,
-                    )
-                ),
-                $Element['text']
+                        ],
+                        'text'       => $this->currentAbreviation,
+                    ],
+                ],
+                $Element['text'],
             );
 
             unset($Element['text']);
@@ -446,16 +428,14 @@ class SidewaysExtra extends Sideways
     {
         $Inline = parent::inlineText($text);
 
-        if (isset($this->DefinitionData['Abbreviation']))
-        {
-            foreach ($this->DefinitionData['Abbreviation'] as $abbreviation => $meaning)
-            {
+        if (isset($this->DefinitionData['Abbreviation'])) {
+            foreach ($this->DefinitionData['Abbreviation'] as $abbreviation => $meaning) {
                 $this->currentAbreviation = $abbreviation;
                 $this->currentMeaning = $meaning;
 
                 $Inline['element'] = $this->elementApplyRecursiveDepthFirst(
-                    array($this, 'insertAbreviation'),
-                    $Inline['element']
+                    [$this, 'insertAbreviation'],
+                    $Inline['element'],
                 );
             }
         }
@@ -474,47 +454,44 @@ class SidewaysExtra extends Sideways
 
         unset($Block['dd']);
 
-        $Block['dd'] = array(
-            'name' => 'dd',
-            'handler' => array(
-                'function' => 'lineElements',
-                'argument' => $text,
-                'destination' => 'elements'
-            ),
-        );
+        $Block['dd'] = [
+            'name'    => 'dd',
+            'handler' => [
+                'function'    => 'lineElements',
+                'argument'    => $text,
+                'destination' => 'elements',
+            ],
+        ];
 
-        if (isset($Block['interrupted']))
-        {
+        if (isset($Block['interrupted'])) {
             $Block['dd']['handler']['function'] = 'textElements';
 
             unset($Block['interrupted']);
         }
 
-        $Block['element']['elements'] []= & $Block['dd'];
+        $Block['element']['elements'] [] = &$Block['dd'];
 
         return $Block;
     }
 
     protected function buildFootnoteElement()
     {
-        $Element = array(
-            'name' => 'div',
-            'attributes' => array('class' => 'footnotes'),
-            'elements' => array(
-                array('name' => 'hr'),
-                array(
-                    'name' => 'ol',
-                    'elements' => array(),
-                ),
-            ),
-        );
+        $Element = [
+            'name'       => 'div',
+            'attributes' => ['class' => 'footnotes'],
+            'elements'   => [
+                ['name' => 'hr'],
+                [
+                    'name'     => 'ol',
+                    'elements' => [],
+                ],
+            ],
+        ];
 
         uasort($this->DefinitionData['Footnote'], 'self::sortFootnotes');
 
-        foreach ($this->DefinitionData['Footnote'] as $definitionId => $DefinitionData)
-        {
-            if ( ! isset($DefinitionData['number']))
-            {
+        foreach ($this->DefinitionData['Footnote'] as $definitionId => $DefinitionData) {
+            if (!isset($DefinitionData['number'])) {
                 continue;
             }
 
@@ -524,65 +501,61 @@ class SidewaysExtra extends Sideways
 
             $numbers = range(1, $DefinitionData['count']);
 
-            $backLinkElements = array();
+            $backLinkElements = [];
 
-            foreach ($numbers as $number)
-            {
-                $backLinkElements[] = array('text' => ' ');
-                $backLinkElements[] = array(
-                    'name' => 'a',
-                    'attributes' => array(
-                        'href' => "#fnref$number:$definitionId",
-                        'rev' => 'footnote',
+            foreach ($numbers as $number) {
+                $backLinkElements[] = ['text' => ' '];
+                $backLinkElements[] = [
+                    'name'                   => 'a',
+                    'attributes'             => [
+                        'href'  => "#fnref$number:$definitionId",
+                        'rev'   => 'footnote',
                         'class' => 'footnote-backref',
-                    ),
-                    'rawHtml' => '&#8617;',
+                    ],
+                    'rawHtml'                => '&#8617;',
                     'allowRawHtmlInSafeMode' => true,
-                    'autobreak' => false,
-                );
+                    'autobreak'              => false,
+                ];
             }
 
             unset($backLinkElements[0]);
 
-            $n = count($textElements) -1;
+            $n = count($textElements) - 1;
 
-            if ($textElements[$n]['name'] === 'p')
-            {
+            if ($textElements[$n]['name'] === 'p') {
                 $backLinkElements = array_merge(
-                    array(
-                        array(
-                            'rawHtml' => '&#160;',
+                    [
+                        [
+                            'rawHtml'                => '&#160;',
                             'allowRawHtmlInSafeMode' => true,
-                        ),
-                    ),
-                    $backLinkElements
+                        ],
+                    ],
+                    $backLinkElements,
                 );
 
                 unset($textElements[$n]['name']);
 
-                $textElements[$n] = array(
-                    'name' => 'p',
+                $textElements[$n] = [
+                    'name'     => 'p',
                     'elements' => array_merge(
-                        array($textElements[$n]),
-                        $backLinkElements
+                        [$textElements[$n]],
+                        $backLinkElements,
                     ),
-                );
-            }
-            else
-            {
-                $textElements[] = array(
-                    'name' => 'p',
-                    'elements' => $backLinkElements
-                );
+                ];
+            } else {
+                $textElements[] = [
+                    'name'     => 'p',
+                    'elements' => $backLinkElements,
+                ];
             }
 
-            $Element['elements'][1]['elements'] []= array(
-                'name' => 'li',
-                'attributes' => array('id' => 'fn:'.$definitionId),
-                'elements' => array_merge(
-                    $textElements
+            $Element['elements'][1]['elements'] [] = [
+                'name'       => 'li',
+                'attributes' => ['id' => 'fn:' . $definitionId],
+                'elements'   => array_merge(
+                    $textElements,
                 ),
-            );
+            ];
         }
 
         return $Element;
@@ -592,24 +565,20 @@ class SidewaysExtra extends Sideways
 
     protected function parseAttributeData($attributeString)
     {
-        $Data = array();
+        $Data = [];
 
-        $attributes = preg_split('/[ ]+/', $attributeString, - 1, PREG_SPLIT_NO_EMPTY);
+        $attributes = preg_split('/[ ]+/', $attributeString, -1, PREG_SPLIT_NO_EMPTY);
 
-        foreach ($attributes as $attribute)
-        {
-            if ($attribute[0] === '#')
-            {
+        foreach ($attributes as $attribute) {
+            if ($attribute[0] === '#') {
                 $Data['id'] = substr($attribute, 1);
-            }
-            else # "."
+            } else # "."
             {
-                $classes []= substr($attribute, 1);
+                $classes [] = substr($attribute, 1);
             }
         }
 
-        if (isset($classes))
-        {
+        if (isset($classes)) {
             $Data['class'] = implode(' ', $classes);
         }
 
@@ -635,29 +604,21 @@ class SidewaysExtra extends Sideways
 
         $elementText = '';
 
-        if ($DOMDocument->documentElement->getAttribute('markdown') === '1')
-        {
-            foreach ($DOMDocument->documentElement->childNodes as $Node)
-            {
+        if ($DOMDocument->documentElement->getAttribute('markdown') === '1') {
+            foreach ($DOMDocument->documentElement->childNodes as $Node) {
                 $elementText .= $DOMDocument->saveHTML($Node);
             }
 
             $DOMDocument->documentElement->removeAttribute('markdown');
 
-            $elementText = "\n".$this->text($elementText)."\n";
-        }
-        else
-        {
-            foreach ($DOMDocument->documentElement->childNodes as $Node)
-            {
+            $elementText = "\n" . $this->text($elementText) . "\n";
+        } else {
+            foreach ($DOMDocument->documentElement->childNodes as $Node) {
                 $nodeMarkup = $DOMDocument->saveHTML($Node);
 
-                if ($Node instanceof DOMElement and ! in_array($Node->nodeName, $this->textLevelElements))
-                {
+                if ($Node instanceof DOMElement and !in_array($Node->nodeName, $this->textLevelElements)) {
                     $elementText .= $this->processTag($nodeMarkup);
-                }
-                else
-                {
+                } else {
                     $elementText .= $nodeMarkup;
                 }
             }

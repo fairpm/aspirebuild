@@ -11,21 +11,6 @@ class SidewaysTest extends TestCase
 {
 
     private $dirs;
-    protected $Sideways;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->Sideways = $this->initSideways();
-    }
-
-    /**
-     * @return Sideways
-     */
-    protected function initSideways()
-    {
-        return new TestSideways();
-    }
 
     /**
      * @param $test
@@ -41,10 +26,12 @@ class SidewaysTest extends TestCase
         $expectedMarkup = str_replace("\r\n", "\n", $expectedMarkup);
         $expectedMarkup = str_replace("\r", "\n", $expectedMarkup);
 
-        $this->Sideways->setSafeMode(substr($test, 0, 3) === 'xss');
-        $this->Sideways->setStrictMode(substr($test, 0, 6) === 'strict');
+        $safeMode = str_starts_with($test, 'xss');
+        $strictMode = str_starts_with($test, 'strict');
 
-        $actualMarkup = $this->Sideways->text($markdown);
+        $sideways = new TestSideways(safeMode: $safeMode, strictMode: $strictMode);
+
+        $actualMarkup = $sideways->text($markdown);
 
         $this->assertEquals($expectedMarkup, $actualMarkup);
     }
@@ -55,12 +42,12 @@ class SidewaysTest extends TestCase
         $expectedMarkup = '<pre><code class="language-php"><p>foobar</p></code></pre>';
         $expectedSafeMarkup = '<pre><code class="language-php">&lt;p&gt;foobar&lt;/p&gt;</code></pre>';
 
-        $unsafeExtension = new UnsafeExtension;
+        $unsafeExtension = new UnsafeExtension(safeMode: false);
         $actualMarkup = $unsafeExtension->text($markdown);
 
         $this->assertEquals($expectedMarkup, $actualMarkup);
 
-        $unsafeExtension->setSafeMode(true);
+        $unsafeExtension = new UnsafeExtension(safeMode: true);
         $actualSafeMarkup = $unsafeExtension->text($markdown);
 
         $this->assertEquals($expectedSafeMarkup, $actualSafeMarkup);
@@ -72,12 +59,12 @@ class SidewaysTest extends TestCase
         $expectedMarkup = '<pre><code class="language-php"><p>foobar</p></code></pre>';
         $expectedSafeMarkup = $expectedMarkup;
 
-        $unsafeExtension = new TrustDelegatedExtension;
+        $unsafeExtension = new TrustDelegatedExtension(safeMode: false);
         $actualMarkup = $unsafeExtension->text($markdown);
 
         $this->assertEquals($expectedMarkup, $actualMarkup);
 
-        $unsafeExtension->setSafeMode(true);
+        $unsafeExtension = new TrustDelegatedExtension(safeMode: true);
         $actualSafeMarkup = $unsafeExtension->text($markdown);
 
         $this->assertEquals($expectedSafeMarkup, $actualSafeMarkup);
@@ -159,8 +146,7 @@ class SidewaysTest extends TestCase
             <p>&lt;!-- html comment --&gt;</p>
             EXPECTED_HTML;
 
-        $sidewaysWithNoMarkup = new TestSideways();
-        $sidewaysWithNoMarkup->setMarkupEscaped(true);
+        $sidewaysWithNoMarkup = new TestSideways(markupEscaped: true);
 
         $this->assertEquals($expectedHtml, $sidewaysWithNoMarkup->text($markdownWithHtml));
     }

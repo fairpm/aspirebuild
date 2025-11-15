@@ -4,7 +4,6 @@ namespace Tests\AspireBuild\Tools\Sideways;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use Sideways\TestSideways;
 
 /**
  * Test Sideways against the CommonMark spec
@@ -19,8 +18,7 @@ class CommonMarkTestStrict extends TestCase
 
     protected function setUp(): void
     {
-        $this->sideways = new TestSideways();
-        $this->sideways->setUrlsLinked(false);
+        $this->sideways = new TestSideways(urlsLinked: false);
     }
 
     /**

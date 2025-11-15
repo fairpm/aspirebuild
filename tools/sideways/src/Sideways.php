@@ -31,6 +31,15 @@ namespace AspireBuild\Tools\Sideways;
 
 class Sideways
 {
+
+    public function __construct(
+        protected readonly bool $breaksEnabled = false,
+        protected readonly bool $markupEscaped = false,
+        protected readonly bool $urlsLinked = true,
+        protected readonly bool $safeMode = false,
+        protected readonly bool $strictMode = false,
+    ) {}
+
     function text($text)
     {
         $Elements = $this->textElements($text);
@@ -66,50 +75,6 @@ class Sideways
     # Setters
     #
 
-    function setBreaksEnabled($breaksEnabled)
-    {
-        $this->breaksEnabled = $breaksEnabled;
-
-        return $this;
-    }
-
-    protected $breaksEnabled;
-
-    function setMarkupEscaped($markupEscaped)
-    {
-        $this->markupEscaped = $markupEscaped;
-
-        return $this;
-    }
-
-    protected $markupEscaped;
-
-    function setUrlsLinked($urlsLinked)
-    {
-        $this->urlsLinked = $urlsLinked;
-
-        return $this;
-    }
-
-    protected $urlsLinked = true;
-
-    function setSafeMode($safeMode)
-    {
-        $this->safeMode = (bool)$safeMode;
-
-        return $this;
-    }
-
-    protected $safeMode;
-
-    function setStrictMode($strictMode)
-    {
-        $this->strictMode = (bool)$strictMode;
-
-        return $this;
-    }
-
-    protected $strictMode;
 
     protected $safeLinksWhitelist = [
         'http://',
