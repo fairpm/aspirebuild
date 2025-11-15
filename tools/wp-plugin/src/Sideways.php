@@ -1,5 +1,7 @@
 <?php
 
+/** @noinspection RegExpSimplifiable */
+
 #
 #
 # Parsedown
@@ -47,11 +49,11 @@ class Sideways
 {
     # ~
 
-    const version = '1.7.4';
+    const string version = '1.7.4';
 
     # ~
 
-    function text($text)
+    public function text($text): string
     {
         # make sure no definitions are set
         $this->DefinitionData = [];
@@ -69,52 +71,50 @@ class Sideways
         $markup = $this->lines($lines);
 
         # trim line breaks
-        $markup = trim($markup, "\n");
-
-        return $markup;
+        return trim($markup, "\n");
     }
 
     #
     # Setters
     #
 
-    function setBreaksEnabled($breaksEnabled)
+    public function setBreaksEnabled($breaksEnabled): static
     {
         $this->breaksEnabled = $breaksEnabled;
 
         return $this;
     }
 
-    protected $breaksEnabled;
+    protected bool $breaksEnabled = false;
 
-    function setMarkupEscaped($markupEscaped)
+    public function setMarkupEscaped($markupEscaped): static
     {
         $this->markupEscaped = $markupEscaped;
 
         return $this;
     }
 
-    protected $markupEscaped;
+    protected bool $markupEscaped = false;
 
-    function setUrlsLinked($urlsLinked)
+    public function setUrlsLinked($urlsLinked): static
     {
         $this->urlsLinked = $urlsLinked;
 
         return $this;
     }
 
-    protected $urlsLinked = true;
+    protected bool $urlsLinked = true;
 
-    function setSafeMode($safeMode)
+    public function setSafeMode($safeMode): static
     {
         $this->safeMode = (bool)$safeMode;
 
         return $this;
     }
 
-    protected $safeMode;
+    protected bool $safeMode;
 
-    protected $safeLinksWhitelist = [
+    protected array $safeLinksWhitelist = [
         'http://',
         'https://',
         'ftp://',
@@ -135,7 +135,7 @@ class Sideways
     # Lines
     #
 
-    protected $BlockTypes = [
+    protected array $BlockTypes = [
         '#' => ['Header'],
         '*' => ['Rule', 'List'],
         '+' => ['List'],
@@ -163,7 +163,7 @@ class Sideways
 
     # ~
 
-    protected $unmarkedBlockTypes = [
+    protected array $unmarkedBlockTypes = [
         'Code',
     ];
 
@@ -171,12 +171,12 @@ class Sideways
     # Blocks
     #
 
-    protected function lines(array $lines)
+    protected function lines(array $lines): string
     {
         $CurrentBlock = null;
 
         foreach ($lines as $line) {
-            if (chop($line) === '') {
+            if (rtrim($line) === '') {
                 if (isset($CurrentBlock)) {
                     $CurrentBlock['interrupted'] = true;
                 }
@@ -184,7 +184,7 @@ class Sideways
                 continue;
             }
 
-            if (strpos($line, "\t") !== false) {
+            if (str_contains($line, "\t")) {
                 $parts = explode("\t", $line);
 
                 $line = $parts[0];
@@ -220,10 +220,10 @@ class Sideways
                     $CurrentBlock = $Block;
 
                     continue;
-                } else {
-                    if ($this->isBlockCompletable($CurrentBlock['type'])) {
-                        $CurrentBlock = $this->{'block' . $CurrentBlock['type'] . 'Complete'}($CurrentBlock);
-                    }
+                }
+
+                if ($this->isBlockCompletable($CurrentBlock['type'])) {
+                    $CurrentBlock = $this->{'block' . $CurrentBlock['type'] . 'Complete'}($CurrentBlock);
                 }
             }
 
@@ -301,7 +301,7 @@ class Sideways
             }
 
             $markup .= "\n";
-            $markup .= isset($Block['markup']) ? $Block['markup'] : $this->element($Block['element']);
+            $markup .= $Block['markup'] ?? $this->element($Block['element']);
         }
 
         $markup .= "\n";
@@ -311,12 +311,12 @@ class Sideways
         return $markup;
     }
 
-    protected function isBlockContinuable($Type)
+    protected function isBlockContinuable($Type): bool
     {
         return method_exists($this, 'block' . $Type . 'Continue');
     }
 
-    protected function isBlockCompletable($Type)
+    protected function isBlockCompletable($Type): bool
     {
         return method_exists($this, 'block' . $Type . 'Complete');
     }
@@ -324,16 +324,16 @@ class Sideways
     #
     # Code
 
-    protected function blockCode($Line, $Block = null)
+    protected function blockCode($Line, $Block = null): ?array
     {
         if (isset($Block) and !isset($Block['type']) and !isset($Block['interrupted'])) {
-            return;
+            return null;
         }
 
         if ($Line['indent'] >= 4) {
             $text = substr($Line['body'], 4);
 
-            $Block = [
+            return [
                 'element' => [
                     'name'    => 'pre',
                     'handler' => 'element',
@@ -343,12 +343,11 @@ class Sideways
                     ],
                 ],
             ];
-
-            return $Block;
         }
+        return null;
     }
 
-    protected function blockCodeContinue($Line, $Block)
+    protected function blockCodeContinue($Line, $Block): ?array
     {
         if ($Line['indent'] >= 4) {
             if (isset($Block['interrupted'])) {
@@ -365,9 +364,10 @@ class Sideways
 
             return $Block;
         }
+        return null;
     }
 
-    protected function blockCodeComplete($Block)
+    protected function blockCodeComplete($Block): array
     {
         $text = $Block['element']['text']['text'];
 
@@ -379,10 +379,10 @@ class Sideways
     #
     # Comment
 
-    protected function blockComment($Line)
+    protected function blockComment($Line): ?array
     {
         if ($this->markupEscaped or $this->safeMode) {
-            return;
+            return null;
         }
 
         if (isset($Line['text'][3]) and $Line['text'][3] === '-' and $Line['text'][2] === '-' and $Line['text'][1]
@@ -391,23 +391,24 @@ class Sideways
                 'markup' => $Line['body'],
             ];
 
-            if (preg_match('/-->$/', $Line['text'])) {
+            if (str_ends_with($Line['text'], '-->')) {
                 $Block['closed'] = true;
             }
 
             return $Block;
         }
+        return null;
     }
 
-    protected function blockCommentContinue($Line, array $Block)
+    protected function blockCommentContinue($Line, array $Block): ?array
     {
         if (isset($Block['closed'])) {
-            return;
+            return null;
         }
 
         $Block['markup'] .= "\n" . $Line['body'];
 
-        if (preg_match('/-->$/', $Line['text'])) {
+        if (str_ends_with($Line['text'], '-->')) {
             $Block['closed'] = true;
         }
 
@@ -417,7 +418,7 @@ class Sideways
     #
     # Fenced Code
 
-    protected function blockFencedCode($Line)
+    protected function blockFencedCode($Line): ?array
     {
         if (preg_match('/^[' . $Line['text'][0] . ']{3,}[ ]*([^`]+)?[ ]*$/', $Line['text'], $matches)) {
             $Element = [
@@ -447,7 +448,7 @@ class Sideways
                 ];
             }
 
-            $Block = [
+            return [
                 'char'    => $Line['text'][0],
                 'element' => [
                     'name'    => 'pre',
@@ -455,15 +456,14 @@ class Sideways
                     'text'    => $Element,
                 ],
             ];
-
-            return $Block;
         }
+        return null;
     }
 
-    protected function blockFencedCodeContinue($Line, $Block)
+    protected function blockFencedCodeContinue($Line, $Block): ?array
     {
         if (isset($Block['complete'])) {
-            return;
+            return null;
         }
 
         if (isset($Block['interrupted'])) {
@@ -485,7 +485,7 @@ class Sideways
         return $Block;
     }
 
-    protected function blockFencedCodeComplete($Block)
+    protected function blockFencedCodeComplete($Block): array
     {
         $text = $Block['element']['text']['text'];
 
@@ -497,7 +497,7 @@ class Sideways
     #
     # Header
 
-    protected function blockHeader($Line)
+    protected function blockHeader($Line): ?array
     {
         if (isset($Line['text'][1])) {
             $level = 1;
@@ -507,27 +507,26 @@ class Sideways
             }
 
             if ($level > 6) {
-                return;
+                return null;
             }
 
             $text = trim($Line['text'], '# ');
 
-            $Block = [
+            return [
                 'element' => [
                     'name'    => 'h' . min(6, $level),
                     'text'    => $text,
                     'handler' => 'line',
                 ],
             ];
-
-            return $Block;
         }
+        return null;
     }
 
     #
     # List
 
-    protected function blockList($Line)
+    protected function blockList($Line): ?array
     {
         [$name, $pattern] = $Line['text'][0] <= '-' ? ['ul', '[*+-]'] : ['ol', '[0-9]+[.]'];
 
@@ -542,7 +541,7 @@ class Sideways
             ];
 
             if ($name === 'ol') {
-                $listStart = stristr($matches[0], '.', true);
+                $listStart = strstr($matches[0], '.', true);
 
                 if ($listStart !== '1') {
                     $Block['element']['attributes'] = ['start' => $listStart];
@@ -561,9 +560,10 @@ class Sideways
 
             return $Block;
         }
+        return null;
     }
 
-    protected function blockListContinue($Line, array $Block)
+    protected function blockListContinue($Line, array $Block): ?array
     {
         if ($Block['indent'] === $Line['indent'] and preg_match('/^' . $Block['pattern'] . '(?:[ ]+(.*)|$)/',
                 $Line['text'], $matches)) {
@@ -577,7 +577,7 @@ class Sideways
 
             unset($Block['li']);
 
-            $text = isset($matches[1]) ? $matches[1] : '';
+            $text = $matches[1] ?? '';
 
             $Block['li'] = [
                 'name'    => 'li',
@@ -615,9 +615,10 @@ class Sideways
 
             return $Block;
         }
+        return null;
     }
 
-    protected function blockListComplete(array $Block)
+    protected function blockListComplete(array $Block): array
     {
         if (isset($Block['loose'])) {
             foreach ($Block['element']['text'] as &$li) {
@@ -633,22 +634,21 @@ class Sideways
     #
     # Quote
 
-    protected function blockQuote($Line)
+    protected function blockQuote($Line): ?array
     {
         if (preg_match('/^>[ ]?(.*)/', $Line['text'], $matches)) {
-            $Block = [
+            return [
                 'element' => [
                     'name'    => 'blockquote',
                     'handler' => 'lines',
                     'text'    => (array)$matches[1],
                 ],
             ];
-
-            return $Block;
         }
+        return null;
     }
 
-    protected function blockQuoteContinue($Line, array $Block)
+    protected function blockQuoteContinue($Line, array $Block): ?array
     {
         if ($Line['text'][0] === '>' and preg_match('/^>[ ]?(.*)/', $Line['text'], $matches)) {
             if (isset($Block['interrupted'])) {
@@ -667,54 +667,55 @@ class Sideways
 
             return $Block;
         }
+        return null;
     }
 
     #
     # Rule
 
-    protected function blockRule($Line)
+    protected function blockRule($Line): ?array
     {
         if (preg_match('/^([' . $Line['text'][0] . '])([ ]*\1){2,}[ ]*$/', $Line['text'])) {
-            $Block = [
+            return [
                 'element' => [
                     'name' => 'hr',
                 ],
             ];
-
-            return $Block;
         }
+        return null;
     }
 
     #
     # Setext
 
-    protected function blockSetextHeader($Line, array $Block = null)
+    protected function blockSetextHeader($Line, ?array $Block = null): ?array
     {
         if (!isset($Block) or isset($Block['type']) or isset($Block['interrupted'])) {
-            return;
+            return null;
         }
 
-        if (chop($Line['text'], $Line['text'][0]) === '') {
+        if (rtrim($Line['text'], $Line['text'][0]) === '') {
             $Block['element']['name'] = $Line['text'][0] === '=' ? 'h1' : 'h2';
 
             return $Block;
         }
+        return null;
     }
 
     #
     # Markup
 
-    protected function blockMarkup($Line)
+    protected function blockMarkup($Line): ?array
     {
         if ($this->markupEscaped or $this->safeMode) {
-            return;
+            return null;
         }
 
         if (preg_match('/^<(\w[\w-]*)(?:[ ]*' . $this->regexHtmlAttribute . ')*[ ]*(\/)?>/', $Line['text'], $matches)) {
             $element = strtolower($matches[1]);
 
-            if (in_array($element, $this->textLevelElements)) {
-                return;
+            if (in_array($element, $this->textLevelElements, true)) {
+                return null;
             }
 
             $Block = [
@@ -728,14 +729,14 @@ class Sideways
             $remainder = substr($Line['text'], $length);
 
             if (trim($remainder) === '') {
-                if (isset($matches[2]) or in_array($matches[1], $this->voidElements)) {
+                if (isset($matches[2]) or in_array($matches[1], $this->voidElements, true)) {
                     $Block['closed'] = true;
 
                     $Block['void'] = true;
                 }
             } else {
-                if (isset($matches[2]) or in_array($matches[1], $this->voidElements)) {
-                    return;
+                if (isset($matches[2]) or in_array($matches[1], $this->voidElements, true)) {
+                    return null;
                 }
 
                 if (preg_match('/<\/' . $matches[1] . '>[ ]*$/i', $remainder)) {
@@ -745,12 +746,13 @@ class Sideways
 
             return $Block;
         }
+        return null;
     }
 
-    protected function blockMarkupContinue($Line, array $Block)
+    protected function blockMarkupContinue($Line, array $Block): ?array
     {
         if (isset($Block['closed'])) {
-            return;
+            return null;
         }
 
         if (preg_match('/^<' . $Block['name'] . '(?:[ ]*' . $this->regexHtmlAttribute . ')*[ ]*>/i',
@@ -759,7 +761,7 @@ class Sideways
             $Block['depth']++;
         }
 
-        if (preg_match('/(.*?)<\/' . $Block['name'] . '>[ ]*$/i', $Line['text'], $matches)) # close
+        if (preg_match('/(.*?)<\/' . $Block['name'] . '>[ ]*$/i', $Line['text'])) # close
         {
             if ($Block['depth'] > 0) {
                 $Block['depth']--;
@@ -782,7 +784,7 @@ class Sideways
     #
     # Reference
 
-    protected function blockReference($Line)
+    protected function blockReference($Line): ?array
     {
         if (preg_match('/^\[(.+?)\]:[ ]*<?(\S+?)>?(?:[ ]+["\'(](.+)["\')])?[ ]*$/', $Line['text'], $matches)) {
             $id = strtolower($matches[1]);
@@ -798,24 +800,23 @@ class Sideways
 
             $this->DefinitionData['Reference'][$id] = $Data;
 
-            $Block = [
+            return [
                 'hidden' => true,
             ];
-
-            return $Block;
         }
+        return null;
     }
 
     #
     # Table
 
-    protected function blockTable($Line, array $Block = null)
+    protected function blockTable($Line, ?array $Block = null): ?array
     {
         if (!isset($Block) or isset($Block['type']) or isset($Block['interrupted'])) {
-            return;
+            return null;
         }
 
-        if (strpos($Block['element']['text'], '|') !== false and chop($Line['text'], ' -:|') === '') {
+        if (str_contains($Block['element']['text'], '|') and rtrim($Line['text'], ' -:|') === '') {
             $alignments = [];
 
             $divider = $Line['text'];
@@ -838,7 +839,7 @@ class Sideways
                     $alignment = 'left';
                 }
 
-                if (substr($dividerCell, -1) === ':') {
+                if (str_ends_with($dividerCell, ':')) {
                     $alignment = $alignment === 'left' ? 'center' : 'right';
                 }
 
@@ -906,12 +907,13 @@ class Sideways
 
             return $Block;
         }
+        return null;
     }
 
-    protected function blockTableContinue($Line, array $Block)
+    protected function blockTableContinue($Line, array $Block): ?array
     {
         if (isset($Block['interrupted'])) {
-            return;
+            return null;
         }
 
         if ($Line['text'][0] === '|' or strpos($Line['text'], '|')) {
@@ -952,30 +954,29 @@ class Sideways
 
             return $Block;
         }
+        return null;
     }
 
     #
     # ~
     #
 
-    protected function paragraph($Line)
+    protected function paragraph($Line): array
     {
-        $Block = [
+        return [
             'element' => [
                 'name'    => 'p',
                 'text'    => $Line['text'],
                 'handler' => 'line',
             ],
         ];
-
-        return $Block;
     }
 
     #
     # Inline Elements
     #
 
-    protected $InlineTypes = [
+    protected array $InlineTypes = [
         '"'  => ['SpecialCharacter'],
         '!'  => ['Image'],
         '&'  => ['SpecialCharacter'],
@@ -992,13 +993,13 @@ class Sideways
 
     # ~
 
-    protected $inlineMarkerList = '!"*_&[:<>`~\\';
+    protected string $inlineMarkerList = '!"*_&[:<>`~\\';
 
     #
     # ~
     #
 
-    public function line($text, $nonNestables = [])
+    public function line($text, $nonNestables = []): string
     {
         $markup = '';
 
@@ -1014,7 +1015,7 @@ class Sideways
             foreach ($this->InlineTypes[$marker] as $inlineType) {
                 # check to see if the current inline type is nestable in the current context
 
-                if (!empty($nonNestables) and in_array($inlineType, $nonNestables)) {
+                if (!empty($nonNestables) and in_array($inlineType, $nonNestables, true)) {
                     continue;
                 }
 
@@ -1049,7 +1050,7 @@ class Sideways
                 $markup .= $this->unmarkedText($unmarkedText);
 
                 # compile the inline
-                $markup .= isset($Inline['markup']) ? $Inline['markup'] : $this->element($Inline['element']);
+                $markup .= $Inline['markup'] ?? $this->element($Inline['element']);
 
                 # remove the examined text
                 $text = substr($text, $Inline['position'] + $Inline['extent']);
@@ -1075,7 +1076,7 @@ class Sideways
     # ~
     #
 
-    protected function inlineCode($Excerpt)
+    protected function inlineCode($Excerpt): ?array
     {
         $marker = $Excerpt['text'][0];
 
@@ -1092,11 +1093,12 @@ class Sideways
                 ],
             ];
         }
+        return null;
     }
 
-    protected function inlineEmailTag($Excerpt)
+    protected function inlineEmailTag($Excerpt): ?array
     {
-        if (strpos($Excerpt['text'], '>') !== false and preg_match('/^<((mailto:)?\S+?@\S+?)>/i', $Excerpt['text'],
+        if (str_contains($Excerpt['text'], '>') and preg_match('/^<((mailto:)?\S+?@\S+?)>/i', $Excerpt['text'],
                 $matches)) {
             $url = $matches[1];
 
@@ -1115,12 +1117,13 @@ class Sideways
                 ],
             ];
         }
+        return null;
     }
 
-    protected function inlineEmphasis($Excerpt)
+    protected function inlineEmphasis($Excerpt): ?array
     {
         if (!isset($Excerpt['text'][1])) {
-            return;
+            return null;
         }
 
         $marker = $Excerpt['text'][0];
@@ -1130,7 +1133,7 @@ class Sideways
         } elseif (preg_match($this->EmRegex[$marker], $Excerpt['text'], $matches)) {
             $emphasis = 'em';
         } else {
-            return;
+            return null;
         }
 
         return [
@@ -1143,20 +1146,21 @@ class Sideways
         ];
     }
 
-    protected function inlineEscapeSequence($Excerpt)
+    protected function inlineEscapeSequence($Excerpt): ?array
     {
-        if (isset($Excerpt['text'][1]) and in_array($Excerpt['text'][1], $this->specialCharacters)) {
+        if (isset($Excerpt['text'][1]) and in_array($Excerpt['text'][1], $this->specialCharacters, true)) {
             return [
                 'markup' => $Excerpt['text'][1],
                 'extent' => 2,
             ];
         }
+        return null;
     }
 
-    protected function inlineImage($Excerpt)
+    protected function inlineImage($Excerpt): ?array
     {
         if (!isset($Excerpt['text'][1]) or $Excerpt['text'][1] !== '[') {
-            return;
+            return null;
         }
 
         $Excerpt['text'] = substr($Excerpt['text'], 1);
@@ -1164,7 +1168,7 @@ class Sideways
         $Link = $this->inlineLink($Excerpt);
 
         if ($Link === null) {
-            return;
+            return null;
         }
 
         $Inline = [
@@ -1185,7 +1189,7 @@ class Sideways
         return $Inline;
     }
 
-    protected function inlineLink($Excerpt)
+    protected function inlineLink($Excerpt): ?array
     {
         $Element = [
             'name'         => 'a',
@@ -1209,7 +1213,7 @@ class Sideways
 
             $remainder = substr($remainder, $extent);
         } else {
-            return;
+            return null;
         }
 
         if (preg_match('/^[(]\s*+((?:[^ ()]++|[(][^ )]+[)])++)(?:[ ]+("[^"]*"|\'[^\']*\'))?\s*[)]/', $remainder,
@@ -1223,7 +1227,7 @@ class Sideways
             $extent += strlen($matches[0]);
         } else {
             if (preg_match('/^\s*\[(.*?)\]/', $remainder, $matches)) {
-                $definition = strlen($matches[1]) ? $matches[1] : $Element['text'];
+                $definition = $matches[1] !== '' ? $matches[1] : $Element['text'];
                 $definition = strtolower($definition);
 
                 $extent += strlen($matches[0]);
@@ -1232,7 +1236,7 @@ class Sideways
             }
 
             if (!isset($this->DefinitionData['Reference'][$definition])) {
-                return;
+                return null;
             }
 
             $Definition = $this->DefinitionData['Reference'][$definition];
@@ -1247,20 +1251,20 @@ class Sideways
         ];
     }
 
-    protected function inlineMarkup($Excerpt)
+    protected function inlineMarkup($Excerpt): ?array
     {
-        if ($this->markupEscaped or $this->safeMode or strpos($Excerpt['text'], '>') === false) {
-            return;
+        if ($this->markupEscaped or $this->safeMode or !str_contains($Excerpt['text'], '>')) {
+            return null;
         }
 
-        if ($Excerpt['text'][1] === '/' and preg_match('/^<\/\w[\w-]*[ ]*>/s', $Excerpt['text'], $matches)) {
+        if ($Excerpt['text'][1] === '/' and preg_match('/^<\/\w[\w-]*[ ]*>/', $Excerpt['text'], $matches)) {
             return [
                 'markup' => $matches[0],
                 'extent' => strlen($matches[0]),
             ];
         }
 
-        if ($Excerpt['text'][1] === '!' and preg_match('/^<!---?[^>-](?:-?[^-])*-->/s', $Excerpt['text'], $matches)) {
+        if ($Excerpt['text'][1] === '!' and preg_match('/^<!---?[^>-](?:-?[^-])*-->/', $Excerpt['text'], $matches)) {
             return [
                 'markup' => $matches[0],
                 'extent' => strlen($matches[0]),
@@ -1275,9 +1279,10 @@ class Sideways
                 'extent' => strlen($matches[0]),
             ];
         }
+        return null;
     }
 
-    protected function inlineSpecialCharacter($Excerpt)
+    protected function inlineSpecialCharacter($Excerpt): ?array
     {
         if ($Excerpt['text'][0] === '&' and !preg_match('/^&#?\w+;/', $Excerpt['text'])) {
             return [
@@ -1294,12 +1299,13 @@ class Sideways
                 'extent' => 1,
             ];
         }
+        return null;
     }
 
-    protected function inlineStrikethrough($Excerpt)
+    protected function inlineStrikethrough($Excerpt): ?array
     {
         if (!isset($Excerpt['text'][1])) {
-            return;
+            return null;
         }
 
         if ($Excerpt['text'][1] === '~' and preg_match('/^~~(?=\S)(.+?)(?<=\S)~~/', $Excerpt['text'], $matches)) {
@@ -1312,18 +1318,19 @@ class Sideways
                 ],
             ];
         }
+        return null;
     }
 
-    protected function inlineUrl($Excerpt)
+    protected function inlineUrl($Excerpt): ?array
     {
         if ($this->urlsLinked !== true or !isset($Excerpt['text'][2]) or $Excerpt['text'][2] !== '/') {
-            return;
+            return null;
         }
 
         if (preg_match('/\bhttps?:[\/]{2}[^\s<]+\b\/*/ui', $Excerpt['context'], $matches, PREG_OFFSET_CAPTURE)) {
             $url = $matches[0][0];
 
-            $Inline = [
+            return [
                 'extent'   => strlen($matches[0][0]),
                 'position' => $matches[0][1],
                 'element'  => [
@@ -1334,14 +1341,13 @@ class Sideways
                     ],
                 ],
             ];
-
-            return $Inline;
         }
+        return null;
     }
 
-    protected function inlineUrlTag($Excerpt)
+    protected function inlineUrlTag($Excerpt): ?array
     {
-        if (strpos($Excerpt['text'], '>') !== false and preg_match('/^<(\w+:\/{2}[^ >]+)>/i', $Excerpt['text'],
+        if (str_contains($Excerpt['text'], '>') and preg_match('/^<(\w+:\/{2}[^ >]+)>/i', $Excerpt['text'],
                 $matches)) {
             $url = $matches[1];
 
@@ -1356,11 +1362,12 @@ class Sideways
                 ],
             ];
         }
+        return null;
     }
 
     # ~
 
-    protected function unmarkedText($text)
+    protected function unmarkedText($text): array|string|null
     {
         if ($this->breaksEnabled) {
             $text = preg_replace('/[ ]*\n/', "<br />\n", $text);
@@ -1376,7 +1383,7 @@ class Sideways
     # Handlers
     #
 
-    protected function element(array $Element)
+    protected function element(array $Element): string
     {
         if ($this->safeMode) {
             $Element = $this->sanitiseElement($Element);
@@ -1430,7 +1437,7 @@ class Sideways
         return $markup;
     }
 
-    protected function elements(array $Elements)
+    protected function elements(array $Elements): string
     {
         $markup = '';
 
@@ -1445,13 +1452,13 @@ class Sideways
 
     # ~
 
-    protected function li($lines)
+    protected function li($lines): array|string
     {
         $markup = $this->lines($lines);
 
         $trimmedMarkup = trim($markup);
 
-        if (!in_array('', $lines) and substr($trimmedMarkup, 0, 3) === '<p>') {
+        if (!in_array('', $lines, true) and str_starts_with($trimmedMarkup, '<p>')) {
             $markup = $trimmedMarkup;
             $markup = substr($markup, 3);
 
@@ -1467,14 +1474,12 @@ class Sideways
     # Deprecated Methods
     #
 
-    function parse($text)
+    public function parse($text): string
     {
-        $markup = $this->text($text);
-
-        return $markup;
+        return $this->text($text);
     }
 
-    protected function sanitiseElement(array $Element)
+    protected function sanitiseElement(array $Element): array
     {
         static $goodAttribute = '/^[a-zA-Z0-9][a-zA-Z0-9-_]*+$/';
         static $safeUrlNameToAtt = [
@@ -1501,12 +1506,11 @@ class Sideways
         return $Element;
     }
 
-    protected function filterUnsafeUrlInAttribute(array $Element, $attribute)
+    protected function filterUnsafeUrlInAttribute(array $Element, $attribute): array
     {
-        foreach ($this->safeLinksWhitelist as $scheme) {
-            if (self::striAtStart($Element['attributes'][$attribute], $scheme)) {
-                return $Element;
-            }
+        if (array_any($this->safeLinksWhitelist,
+            fn($scheme) => self::striAtStart($Element['attributes'][$attribute], $scheme))) {
+            return $Element;
         }
 
         $Element['attributes'][$attribute] = str_replace(':', '%3A', $Element['attributes'][$attribute]);
@@ -1518,23 +1522,23 @@ class Sideways
     # Static Methods
     #
 
-    protected static function escape($text, $allowQuotes = false)
+    protected static function escape($text, $allowQuotes = false): string
     {
         return htmlspecialchars($text, $allowQuotes ? ENT_NOQUOTES : ENT_QUOTES, 'UTF-8');
     }
 
-    protected static function striAtStart($string, $needle)
+    protected static function striAtStart($string, $needle): bool
     {
         $len = strlen($needle);
 
         if ($len > strlen($string)) {
             return false;
-        } else {
-            return strtolower(substr($string, 0, $len)) === strtolower($needle);
         }
+
+        return stripos($string, strtolower($needle)) === 0;
     }
 
-    static function instance($name = 'default')
+    public static function instance($name = 'default')
     {
         if (isset(self::$instances[$name])) {
             return self::$instances[$name];
@@ -1547,18 +1551,18 @@ class Sideways
         return $instance;
     }
 
-    private static $instances = [];
+    private static array $instances = [];
 
     #
     # Fields
     #
 
-    protected $DefinitionData;
+    protected array $DefinitionData = [];
 
     #
     # Read-Only
 
-    protected $specialCharacters = [
+    protected array $specialCharacters = [
         '\\',
         '`',
         '*',
@@ -1578,19 +1582,19 @@ class Sideways
         '|',
     ];
 
-    protected $StrongRegex = [
+    protected array $StrongRegex = [
         '*' => '/^[*]{2}((?:\\\\\*|[^*]|[*][^*]*[*])+?)[*]{2}(?![*])/s',
         '_' => '/^__((?:\\\\_|[^_]|_[^_]*_)+?)__(?!_)/us',
     ];
 
-    protected $EmRegex = [
+    protected array $EmRegex = [
         '*' => '/^[*]((?:\\\\\*|[^*]|[*][*][^*]+?[*][*])+?)[*](?![*])/s',
         '_' => '/^_((?:\\\\_|[^_]|__[^_]*__)+?)_(?!_)\b/us',
     ];
 
-    protected $regexHtmlAttribute = '[a-zA-Z_:][\w:.-]*(?:\s*=\s*(?:[^"\'=<>`\s]+|"[^"]*"|\'[^\']*\'))?';
+    protected string $regexHtmlAttribute = '[a-zA-Z_:][\w:.-]*(?:\s*=\s*(?:[^"\'=<>`\s]+|"[^"]*"|\'[^\']*\'))?';
 
-    protected $voidElements = [
+    protected array $voidElements = [
         'area',
         'base',
         'br',
@@ -1606,7 +1610,7 @@ class Sideways
         'source',
     ];
 
-    protected $textLevelElements = [
+    protected array $textLevelElements = [
         'a',
         'br',
         'bdo',
