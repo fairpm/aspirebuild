@@ -13,17 +13,6 @@ class ParsedownTest extends TestCase
     private $dirs;
     protected $Parsedown;
 
-    // has been final for like forever
-    //
-    // final function __construct($name = null, array $data = [], $dataName = '')
-    // {
-    //     $this->dirs = $this->initDirs();
-    //     $this->Parsedown = $this->initParsedown();
-    //
-    //     parent::__construct($name, $data, $dataName);
-    // }
-
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -45,9 +34,9 @@ class ParsedownTest extends TestCase
     #[DataProvider('data')]
     function test_data_dir($test, $dir)
     {
-        $markdown = file_get_contents($dir . $test . '.md');
+        $markdown = file_get_contents("$dir/$test.md");
 
-        $expectedMarkup = file_get_contents($dir . $test . '.html');
+        $expectedMarkup = file_get_contents("$dir/$test.html");
 
         $expectedMarkup = str_replace("\r\n", "\n", $expectedMarkup);
         $expectedMarkup = str_replace("\r", "\n", $expectedMarkup);
@@ -62,8 +51,6 @@ class ParsedownTest extends TestCase
 
     function testRawHtml()
     {
-        $this->markTestSkipped('fails in the original source');
-
         $markdown = "```php\nfoobar\n```";
         $expectedMarkup = '<pre><code class="language-php"><p>foobar</p></code></pre>';
         $expectedSafeMarkup = '<pre><code class="language-php">&lt;p&gt;foobar&lt;/p&gt;</code></pre>';
@@ -81,8 +68,6 @@ class ParsedownTest extends TestCase
 
     function testTrustDelegatedRawHtml()
     {
-        $this->markTestSkipped('fails in the original source');
-
         $markdown = "```php\nfoobar\n```";
         $expectedMarkup = '<pre><code class="language-php"><p>foobar</p></code></pre>';
         $expectedSafeMarkup = $expectedMarkup;
@@ -177,7 +162,6 @@ class ParsedownTest extends TestCase
         $parsedownWithNoMarkup = new TestParsedown();
         $parsedownWithNoMarkup->setMarkupEscaped(true);
 
-        $this->markTestSkipped('fails in the original source');
         $this->assertEquals($expectedHtml, $parsedownWithNoMarkup->text($markdownWithHtml));
     }
 

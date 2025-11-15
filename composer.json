@@ -10,7 +10,9 @@
         "thecodingmachine/safe": "^3.3",
         "ext-intl": "*",
         "ext-mbstring": "*",
-        "symfony/var-dumper": "^7.3"
+        "symfony/var-dumper": "^7.3",
+        "ext-dom": "*",
+        "ext-libxml": "*"
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",

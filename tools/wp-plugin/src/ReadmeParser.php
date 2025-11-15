@@ -2,6 +2,7 @@
 
 namespace AspireBuild\Tools\WpPlugin;
 
+use AspireBuild\Tools\Sideways\Parsedown;
 use AspireBuild\Tools\Sideways\Sideways;
 use AspireBuild\Util\Regex;
 use Normalizer;
@@ -370,7 +371,11 @@ class ReadmeParser
 
     private function render_markdown(string $text): string
     {
-        return new Sideways(source: $text, urlsLinked: true, safeMode: true)->toHtml();
+        $parser = new Parsedown();
+        $parser->setSafeMode(true);
+        return $parser->text($text);
+
+        // return new Sideways(source: $text, urlsLinked: true, safeMode: true)->toHtml();
     }
 
 
