@@ -1076,7 +1076,7 @@ final class Sideways
     {
         $Element = [
             'name'         => 'a',
-            'handler'      => 'line',
+            'handler'      => $this->line(...),
             'nonNestables' => ['Url', 'Link'],
             'text'         => null,
             'attributes'   => [
