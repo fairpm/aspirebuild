@@ -1,13 +1,16 @@
 <?php
 
-namespace Tests\AspireBuild\Tools\Sideways;
+namespace Sideways;
 
 use AspireBuild\Tools\Sideways\Sideways;
 use DirectoryIterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Tests\AspireBuild\Tools\Sideways\TestSideways;
+use Tests\AspireBuild\Tools\Sideways\TrustDelegatedExtension;
+use Tests\AspireBuild\Tools\Sideways\UnsafeExtension;
 
-class SidewaysTest extends TestCase
+class SidewaysExtraTest extends TestCase
 {
 
     private $dirs;
@@ -29,7 +32,7 @@ class SidewaysTest extends TestCase
         $safeMode = str_starts_with($test, 'xss');
         $strictMode = str_starts_with($test, 'strict');
 
-        $sideways = new TestSideways(safeMode: $safeMode, strictMode: $strictMode);
+        $sideways = new TestSideways(safeMode: $safeMode, strictMode: $strictMode, extra: true);
 
         $actualMarkup = $sideways->text($markdown);
 
@@ -74,7 +77,7 @@ class SidewaysTest extends TestCase
     {
         $data = [];
 
-        $dir = __DIR__ . '/data/';
+        $dir = __DIR__ . '/data/extra';
         $Folder = new DirectoryIterator($dir);
 
         foreach ($Folder as $File) {
@@ -146,7 +149,7 @@ class SidewaysTest extends TestCase
             <p>&lt;!-- html comment --&gt;</p>
             EXPECTED_HTML;
 
-        $sidewaysWithNoMarkup = new TestSideways(markupEscaped: true);
+        $sidewaysWithNoMarkup = new TestSideways(markupEscaped: true, extra: true);
 
         $this->assertEquals($expectedHtml, $sidewaysWithNoMarkup->text($markdownWithHtml));
     }
@@ -169,3 +172,55 @@ class SidewaysTest extends TestCase
         $this->assertSame($testSideways, $sameInstanceAgain);
     }
 }
+
+// class ParsedownExtraTest extends ParsedownTest
+// {
+//     public static function data(): array
+//     {
+//         // what fresh hell is this?
+//         // foreach ($this->initDirs() as $i => $dir)
+//         // {
+//         //     $newData = $this->dataFromDirectory($dir);
+//         //
+//         //     if ($i < 1)
+//         //     {
+//         //         # Parsedown-Extra has different treatment of HTML
+//         //         $newData = array_filter($newData, function ($s) { return strpos($s[0], 'markup') === false; });
+//         //         $newData = array_filter($newData, function ($s) { return strpos($s[0], 'html') === false; });
+//         //     }
+//         //
+//         //     $data = array_merge($data, $newData);
+//         // }
+//
+//         $data = [];
+//
+//         $Folder = new DirectoryIterator(__DIR__ . '/data');
+//
+//         foreach ($Folder as $File) {
+//             /** @var $File DirectoryIterator */
+//
+//             if (!$File->isFile()) {
+//                 continue;
+//             }
+//
+//             $filename = $File->getFilename();
+//
+//             $extension = pathinfo($filename, PATHINFO_EXTENSION);
+//
+//             if ($extension !== 'md') {
+//                 continue;
+//             }
+//
+//             $basename = $File->getBasename('.md');
+//
+//             $html = __DIR__ . "/data/$basename.html";
+//
+//             if (file_exists($html)) {
+//                 $data [] = [$basename, __DIR__ . '/data'];
+//             }
+//         }
+//
+//         return $data;
+//     }
+//
+// }

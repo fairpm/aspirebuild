@@ -30,6 +30,8 @@
 namespace AspireBuild\Tools\Sideways;
 
 use Closure;
+use DOMDocument;
+use DOMElement;
 use InvalidArgumentException;
 
 class Sideways
@@ -41,17 +43,38 @@ class Sideways
         protected readonly bool $urlsLinked = true,
         protected readonly bool $safeMode = false,
         protected readonly bool $strictMode = false,
-    ) {}
+        protected readonly bool $extra = false,
+    ) {
+
+        if ($extra) {
+            $this->BlockTypes[':'] [] = 'DefinitionList';
+            $this->BlockTypes['*'] [] = 'Abbreviation';
+
+            # identify footnote definitions before reference definitions
+            array_unshift($this->BlockTypes['['], 'Footnote');
+
+            # identify footnote markers before before links
+            array_unshift($this->InlineTypes['['], 'FootnoteMarker');
+        }
+    }
 
     public function text($text): string
     {
         $Elements = $this->textElements($text);
-
-        // convert to markup
         $markup = $this->elements($Elements);
+        $markup = trim($markup, "\n");
 
-        // trim line breaks
-        return trim($markup, "\n");
+        if ($this->extra) {
+            $markup = preg_replace('/<\/dl>\s+<dl>\s+/', '', $markup);
+
+            if (isset($this->DefinitionData['Footnote'])) {
+                $Element = $this->buildFootnoteElement();
+
+                $markup .= "\n" . $this->element($Element);
+            }
+        }
+
+        return $markup;
     }
 
     protected function textElements($text): array
@@ -449,7 +472,7 @@ class Sideways
 
         $text = trim($text, ' ');
 
-        return [
+        $Block = [
             'element' => [
                 'name'    => 'h' . $level,
                 'handler' => [
@@ -459,6 +482,21 @@ class Sideways
                 ],
             ],
         ];
+
+        if ($this->extra
+            && $Block !== null
+            && preg_match('/[ #]*{(' . $this->regexAttribute . '+)}[ ]*$/', $Block['element']['handler']['argument'],
+                $matches, PREG_OFFSET_CAPTURE)) {
+            $attributeString = $matches[1][0];
+
+            $Block['element']['attributes'] = $this->parseAttributeData($attributeString);
+
+            $Block['element']['handler']['argument'] = substr($Block['element']['handler']['argument'], 0,
+                $matches[0][1]);
+        }
+
+        return $Block;
+
     }
 
     protected function blockList($Line, ?array $CurrentBlock = null): ?array
@@ -676,14 +714,30 @@ class Sideways
 
         if ($Line['indent'] < 4 and rtrim(rtrim($Line['text'], ' '), $Line['text'][0]) === '') {
             $Block['element']['name'] = $Line['text'][0] === '=' ? 'h1' : 'h2';
-
-            return $Block;
+        } else {
+            return null;
         }
-        return null;
+
+        if ($this->extra && $Block !== null
+            && preg_match('/[ ]*{(' . $this->regexAttribute . '+)}[ ]*$/', $Block['element']['handler']['argument'],
+                $matches, PREG_OFFSET_CAPTURE)) {
+            $attributeString = $matches[1][0];
+
+            $Block['element']['attributes'] = $this->parseAttributeData($attributeString);
+
+            $Block['element']['handler']['argument'] = substr($Block['element']['handler']['argument'], 0,
+                $matches[0][1]);
+        }
+
+        return $Block;
     }
 
     protected function blockMarkup($Line): ?array
     {
+        if ($this->extra) {
+            return $this->_blockMarkup_Extra($Line);
+        }
+
         if ($this->markupEscaped or $this->safeMode) {
             return null;
         }
@@ -707,13 +761,104 @@ class Sideways
         return null;
     }
 
+    protected function _blockMarkup_Extra($Line): ?array
+    {
+        if ($this->markupEscaped or $this->safeMode) {
+            return null;
+        }
+
+        if (preg_match('/^<(\w[\w-]*)(?:[ ]*' . $this->regexHtmlAttribute . ')*[ ]*(\/)?>/', $Line['text'], $matches)) {
+            $element = strtolower($matches[1]);
+
+            if (in_array($element, $this->textLevelElements)) {
+                return null;
+            }
+
+            $Block = [
+                'name'    => $matches[1],
+                'depth'   => 0,
+                'element' => [
+                    'rawHtml'   => $Line['text'],
+                    'autobreak' => true,
+                ],
+            ];
+
+            $length = strlen($matches[0]);
+            $remainder = substr($Line['text'], $length);
+
+            if (trim($remainder) === '') {
+                if (isset($matches[2]) or in_array($matches[1], $this->voidElements)) {
+                    $Block['closed'] = true;
+                    $Block['void'] = true;
+                }
+            } else {
+                if (isset($matches[2]) or in_array($matches[1], $this->voidElements)) {
+                    return null;
+                }
+                if (preg_match('/<\/' . $matches[1] . '>[ ]*$/i', $remainder)) {
+                    $Block['closed'] = true;
+                }
+            }
+
+            return $Block;
+        }
+    }
+
+
     protected function blockMarkupContinue($Line, array $Block): ?array
     {
+        if ($this->extra) {
+            return $this->_blockMarkupContinue_Extra($line, $Block);
+        }
+
         if (isset($Block['closed']) or isset($Block['interrupted'])) {
             return null;
         }
 
         $Block['element']['rawHtml'] .= "\n" . $Line['body'];
+
+        return $Block;
+    }
+
+    protected function _blockMarkupContinue_Extra($Line, array $Block): ?array
+    {
+        if (isset($Block['closed'])) {
+            return null;
+        }
+
+        if (preg_match('/^<' . $Block['name'] . '(?:[ ]*' . $this->regexHtmlAttribute . ')*[ ]*>/i',
+            $Line['text'])) # open
+        {
+            $Block['depth']++;
+        }
+
+        if (preg_match('/(.*?)<\/' . $Block['name'] . '>[ ]*$/i', $Line['text'], $matches)) # close
+        {
+            if ($Block['depth'] > 0) {
+                $Block['depth']--;
+            } else {
+                $Block['closed'] = true;
+            }
+        }
+
+        if (isset($Block['interrupted'])) {
+            $Block['element']['rawHtml'] .= "\n";
+            unset($Block['interrupted']);
+        }
+
+        $Block['element']['rawHtml'] .= "\n" . $Line['body'];
+
+        return $Block;
+    }
+
+    protected function blockMarkupComplete($Block)
+    {
+        if (!$this->extra) {
+            return $Block;
+        }
+        if (!isset($Block['void'])) {
+            $Block['element']['rawHtml'] = $this->processTag($Block['element']['rawHtml']);
+        }
 
         return $Block;
     }
@@ -1056,6 +1201,18 @@ class Sideways
             $text,
         );
 
+        if ($this->extra && isset($this->DefinitionData['Abbreviation'])) {
+            foreach ($this->DefinitionData['Abbreviation'] as $abbreviation => $meaning) {
+                $this->currentAbreviation = $abbreviation;
+                $this->currentMeaning = $meaning;
+
+                $Inline['element'] = $this->elementApplyRecursiveDepthFirst(
+                    $this->insertAbreviation(...),
+                    $Inline['element'],
+                );
+            }
+        }
+
         return $Inline;
     }
 
@@ -1241,10 +1398,22 @@ class Sideways
             $Element['attributes']['title'] = $Definition['title'];
         }
 
-        return [
+        $Link = [
             'extent'  => $extent,
             'element' => $Element,
         ];
+
+        if ($this->extra) {
+            $remainder = $Link !== null ? substr($Excerpt['text'], $Link['extent']) : '';
+
+            if (preg_match('/^[ ]*{(' . $this->regexAttribute . '+)}/', $remainder, $matches)) {
+                $Link['element']['attributes'] += $this->parseAttributeData($matches[1]);
+
+                $Link['extent'] += strlen($matches[0]);
+            }
+        }
+
+        return $Link;
     }
 
     protected function inlineMarkup($Excerpt): ?array
@@ -1759,6 +1928,378 @@ class Sideways
         'time',
     ];
 
+
+    // "Extra"
+
+    protected function blockAbbreviation($Line)
+    {
+        if (preg_match('/^\*\[(.+?)\]:[ ]*(.+?)[ ]*$/', $Line['text'], $matches)) {
+            $this->DefinitionData['Abbreviation'][$matches[1]] = $matches[2];
+
+            $Block = [
+                'hidden' => true,
+            ];
+
+            return $Block;
+        }
+    }
+
+    protected function blockFootnote($Line)
+    {
+        if (preg_match('/^\[\^(.+?)\]:[ ]?(.*)$/', $Line['text'], $matches)) {
+            $Block = [
+                'label'  => $matches[1],
+                'text'   => $matches[2],
+                'hidden' => true,
+            ];
+
+            return $Block;
+        }
+    }
+
+    protected function blockFootnoteContinue($Line, $Block)
+    {
+        if ($Line['text'][0] === '[' and preg_match('/^\[\^(.+?)\]:/', $Line['text'])) {
+            return null;
+        }
+
+        if (isset($Block['interrupted'])) {
+            if ($Line['indent'] >= 4) {
+                $Block['text'] .= "\n\n" . $Line['text'];
+
+                return $Block;
+            }
+        } else {
+            $Block['text'] .= "\n" . $Line['text'];
+
+            return $Block;
+        }
+    }
+
+    protected function blockFootnoteComplete($Block)
+    {
+        $this->DefinitionData['Footnote'][$Block['label']] = [
+            'text'   => $Block['text'],
+            'count'  => null,
+            'number' => null,
+        ];
+
+        return $Block;
+    }
+
+    protected function blockDefinitionList($Line, $Block)
+    {
+        if (!isset($Block) or $Block['type'] !== 'Paragraph') {
+            return null;
+        }
+
+        $Element = [
+            'name'     => 'dl',
+            'elements' => [],
+        ];
+
+        $terms = explode("\n", $Block['element']['handler']['argument']);
+
+        foreach ($terms as $term) {
+            $Element['elements'] [] = [
+                'name'    => 'dt',
+                'handler' => [
+                    'function'    => 'lineElements',
+                    'argument'    => $term,
+                    'destination' => 'elements',
+                ],
+            ];
+        }
+
+        $Block['element'] = $Element;
+
+        $Block = $this->addDdElement($Line, $Block);
+
+        return $Block;
+    }
+
+    protected function blockDefinitionListContinue($Line, array $Block)
+    {
+        if ($Line['text'][0] === ':') {
+            $Block = $this->addDdElement($Line, $Block);
+
+            return $Block;
+        } else {
+            if (isset($Block['interrupted']) and $Line['indent'] === 0) {
+                return null;
+            }
+
+            if (isset($Block['interrupted'])) {
+                $Block['dd']['handler']['function'] = 'textElements';
+                $Block['dd']['handler']['argument'] .= "\n\n";
+
+                $Block['dd']['handler']['destination'] = 'elements';
+
+                unset($Block['interrupted']);
+            }
+
+            $text = substr($Line['body'], min($Line['indent'], 4));
+
+            $Block['dd']['handler']['argument'] .= "\n" . $text;
+
+            return $Block;
+        }
+    }
+
+    private $footnoteCount = 0;
+
+    protected function inlineFootnoteMarker($Excerpt)
+    {
+        if (preg_match('/^\[\^(.+?)\]/', $Excerpt['text'], $matches)) {
+            $name = $matches[1];
+
+            if (!isset($this->DefinitionData['Footnote'][$name])) {
+                return null;
+            }
+
+            $this->DefinitionData['Footnote'][$name]['count']++;
+
+            if (!isset($this->DefinitionData['Footnote'][$name]['number'])) {
+                $this->DefinitionData['Footnote'][$name]['number'] = ++$this->footnoteCount; # » &
+            }
+
+            $Element = [
+                'name'       => 'sup',
+                'attributes' => ['id' => 'fnref' . $this->DefinitionData['Footnote'][$name]['count'] . ':' . $name],
+                'element'    => [
+                    'name'       => 'a',
+                    'attributes' => ['href' => '#fn:' . $name, 'class' => 'footnote-ref'],
+                    'text'       => $this->DefinitionData['Footnote'][$name]['number'],
+                ],
+            ];
+
+            return [
+                'extent'  => strlen($matches[0]),
+                'element' => $Element,
+            ];
+        }
+    }
+
+    private $currentAbreviation;
+    private $currentMeaning;
+
+    protected function insertAbreviation(array $Element)
+    {
+        if (isset($Element['text'])) {
+            $Element['elements'] = self::pregReplaceElements(
+                '/\b' . preg_quote($this->currentAbreviation, '/') . '\b/',
+                [
+                    [
+                        'name'       => 'abbr',
+                        'attributes' => [
+                            'title' => $this->currentMeaning,
+                        ],
+                        'text'       => $this->currentAbreviation,
+                    ],
+                ],
+                $Element['text'],
+            );
+
+            unset($Element['text']);
+        }
+
+        return $Element;
+    }
+
+    //region "Extra" Utility Methods (Apparently Unused)
+
+    protected function addDdElement(array $Line, array $Block)
+    {
+        $text = substr($Line['text'], 1);
+        $text = trim($text);
+
+        unset($Block['dd']);
+
+        $Block['dd'] = [
+            'name'    => 'dd',
+            'handler' => [
+                'function'    => 'lineElements',
+                'argument'    => $text,
+                'destination' => 'elements',
+            ],
+        ];
+
+        if (isset($Block['interrupted'])) {
+            $Block['dd']['handler']['function'] = 'textElements';
+
+            unset($Block['interrupted']);
+        }
+
+        $Block['element']['elements'] [] = &$Block['dd'];
+
+        return $Block;
+    }
+
+    protected function buildFootnoteElement()
+    {
+        $Element = [
+            'name'       => 'div',
+            'attributes' => ['class' => 'footnotes'],
+            'elements'   => [
+                ['name' => 'hr'],
+                [
+                    'name'     => 'ol',
+                    'elements' => [],
+                ],
+            ],
+        ];
+
+        uasort($this->DefinitionData['Footnote'], self::sortFootnotes(...));
+
+        foreach ($this->DefinitionData['Footnote'] as $definitionId => $DefinitionData) {
+            if (!isset($DefinitionData['number'])) {
+                continue;
+            }
+
+            $text = $DefinitionData['text'];
+
+            $textElements = $this->textElements($text);
+
+            $numbers = range(1, $DefinitionData['count']);
+
+            $backLinkElements = [];
+
+            foreach ($numbers as $number) {
+                $backLinkElements[] = ['text' => ' '];
+                $backLinkElements[] = [
+                    'name'                   => 'a',
+                    'attributes'             => [
+                        'href'  => "#fnref$number:$definitionId",
+                        'rev'   => 'footnote',
+                        'class' => 'footnote-backref',
+                    ],
+                    'rawHtml'                => '&#8617;',
+                    'allowRawHtmlInSafeMode' => true,
+                    'autobreak'              => false,
+                ];
+            }
+
+            unset($backLinkElements[0]);
+
+            $n = count($textElements) - 1;
+
+            if ($textElements[$n]['name'] === 'p') {
+                $backLinkElements = array_merge(
+                    [
+                        [
+                            'rawHtml'                => '&#160;',
+                            'allowRawHtmlInSafeMode' => true,
+                        ],
+                    ],
+                    $backLinkElements,
+                );
+
+                unset($textElements[$n]['name']);
+
+                $textElements[$n] = [
+                    'name'     => 'p',
+                    'elements' => array_merge(
+                        [$textElements[$n]],
+                        $backLinkElements,
+                    ),
+                ];
+            } else {
+                $textElements[] = [
+                    'name'     => 'p',
+                    'elements' => $backLinkElements,
+                ];
+            }
+
+            $Element['elements'][1]['elements'] [] = [
+                'name'       => 'li',
+                'attributes' => ['id' => 'fn:' . $definitionId],
+                'elements'   => array_merge(
+                    $textElements,
+                ),
+            ];
+        }
+
+        return $Element;
+    }
+
+    protected function parseAttributeData($attributeString)
+    {
+        $Data = [];
+
+        $attributes = preg_split('/[ ]+/', $attributeString, -1, PREG_SPLIT_NO_EMPTY);
+
+        foreach ($attributes as $attribute) {
+            if ($attribute[0] === '#') {
+                $Data['id'] = substr($attribute, 1);
+            } else # "."
+            {
+                $classes [] = substr($attribute, 1);
+            }
+        }
+
+        if (isset($classes)) {
+            $Data['class'] = implode(' ', $classes);
+        }
+
+        return $Data;
+    }
+
+    protected function processTag($elementMarkup) # recursive
+    {
+        # http://stackoverflow.com/q/1148928/200145
+        libxml_use_internal_errors(true);
+
+        $DOMDocument = new DOMDocument;
+
+        # http://stackoverflow.com/q/11309194/200145
+        $elementMarkup = mb_convert_encoding($elementMarkup, 'HTML-ENTITIES', 'UTF-8');
+
+        # http://stackoverflow.com/q/4879946/200145
+        $DOMDocument->loadHTML($elementMarkup);
+        $DOMDocument->removeChild($DOMDocument->doctype);
+        $DOMDocument->replaceChild($DOMDocument->firstChild->firstChild->firstChild, $DOMDocument->firstChild);
+
+        $elementText = '';
+
+        if ($DOMDocument->documentElement->getAttribute('markdown') === '1') {
+            foreach ($DOMDocument->documentElement->childNodes as $Node) {
+                $elementText .= $DOMDocument->saveHTML($Node);
+            }
+
+            $DOMDocument->documentElement->removeAttribute('markdown');
+
+            $elementText = "\n" . $this->text($elementText) . "\n";
+        } else {
+            foreach ($DOMDocument->documentElement->childNodes as $Node) {
+                $nodeMarkup = $DOMDocument->saveHTML($Node);
+
+                if ($Node instanceof DOMElement and !in_array($Node->nodeName, $this->textLevelElements)) {
+                    $elementText .= $this->processTag($nodeMarkup);
+                } else {
+                    $elementText .= $nodeMarkup;
+                }
+            }
+        }
+
+        # because we don't want for markup to get encoded
+        $DOMDocument->documentElement->nodeValue = 'placeholder\x1A';
+
+        $markup = $DOMDocument->saveHTML($DOMDocument->documentElement);
+        $markup = str_replace('placeholder\x1A', $elementText, $markup);
+
+        return $markup;
+    }
+
+    protected function sortFootnotes($A, $B) # callback
+    {
+        return $A['number'] - $B['number'];
+    }
+
+    protected $regexAttribute = '(?:[#.][-\w]+[ ]*)';
+
+    //endregion
+
+
     protected function _dispatch(string $name, string $type): ?Closure {
         /** @noinspection PhpExpressionAlwaysNullInspection (false positive) */
         return match ($name) {
@@ -1774,6 +2315,10 @@ class Sideways
                 'Markup' => $this->blockMarkup(...),
                 'Reference' => $this->blockReference(...),
                 'Table' => $this->blockTable(...),
+                // Extra
+                'Abbreviation' => $this->blockAbbreviation(...),
+                'Footnote' => $this->blockFootnote(...),
+
                 default => null,
             },
             'continue' => match ($type) {
@@ -1784,13 +2329,17 @@ class Sideways
                 'Quote' => $this->blockQuoteContinue(...),
                 'Markup' => $this->blockMarkupContinue(...),
                 'Table' => $this->blockTableContinue(...),
-                // default => throw new InvalidArgumentException("Unknown block type: $type"),
+                // Extra
+                'Footnote' => $this->blockFootnoteContinue(...),
                 default => null,
             },
             'complete' => match ($type) {
                 'Code' => $this->blockCodeComplete(...),
                 'FencedCode' => $this->blockFencedCodeComplete(...),
                 'List' => $this->blockListComplete(...),
+                // Extra
+                'Markup' => $this->blockMarkupComplete(...),
+                'Footnote' => $this->blockFootnoteComplete(...),
             },
             'inline' => match ($type) {
                 'Text' => $this->inlineText(...),
@@ -1805,10 +2354,14 @@ class Sideways
                 'Strikethrough' => $this->inlineStrikethrough(...),
                 'Url' => $this->inlineUrl(...),
                 'UrlTag' => $this->inlineUrlTag(...),
+                //
+                'FootnoteMarker' => $this->inlineFootnoteMarker(...),
                 // default => throw new InvalidArgumentException("Unknown inline type: $type"),
                 default => null,
             },
             default => throw new InvalidArgumentException("Invalid method type: $type"),
         };
     }
+
+
 }
