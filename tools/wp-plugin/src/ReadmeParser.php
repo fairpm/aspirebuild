@@ -212,7 +212,7 @@ class ReadmeParser
         }
 
         foreach ($sections as $section => $content) {
-            $newcontent = mb_substr($content, 0, 1024 * 16); // 16K limit for every section.
+            $newcontent = mb_substr($content, 0, 1024 * 64); // 64K limit for every section.
 
             if ($content !== $newcontent) {
                 $this->warnings["trimmed_section_$section"] = true;
