@@ -484,7 +484,6 @@ class Sideways
         ];
 
         if ($this->extra
-            && $Block !== null
             && preg_match('/[ #]*{(' . $this->regexAttribute . '+)}[ ]*$/', $Block['element']['handler']['argument'],
                 $matches, PREG_OFFSET_CAPTURE)) {
             $attributeString = $matches[1][0];
@@ -770,7 +769,7 @@ class Sideways
         if (preg_match('/^<(\w[\w-]*)(?:[ ]*' . $this->regexHtmlAttribute . ')*[ ]*(\/)?>/', $Line['text'], $matches)) {
             $element = strtolower($matches[1]);
 
-            if (in_array($element, $this->textLevelElements)) {
+            if (in_array($element, $this->textLevelElements, true)) {
                 return null;
             }
 
@@ -787,12 +786,12 @@ class Sideways
             $remainder = substr($Line['text'], $length);
 
             if (trim($remainder) === '') {
-                if (isset($matches[2]) or in_array($matches[1], $this->voidElements)) {
+                if (isset($matches[2]) or in_array($matches[1], $this->voidElements, true)) {
                     $Block['closed'] = true;
                     $Block['void'] = true;
                 }
             } else {
-                if (isset($matches[2]) or in_array($matches[1], $this->voidElements)) {
+                if (isset($matches[2]) or in_array($matches[1], $this->voidElements, true)) {
                     return null;
                 }
                 if (preg_match('/<\/' . $matches[1] . '>[ ]*$/i', $remainder)) {
@@ -802,13 +801,14 @@ class Sideways
 
             return $Block;
         }
+        return null;
     }
 
 
     protected function blockMarkupContinue($Line, array $Block): ?array
     {
         if ($this->extra) {
-            return $this->_blockMarkupContinue_Extra($line, $Block);
+            return $this->_blockMarkupContinue_Extra($Line, $Block);
         }
 
         if (isset($Block['closed']) or isset($Block['interrupted'])) {
@@ -832,7 +832,7 @@ class Sideways
             $Block['depth']++;
         }
 
-        if (preg_match('/(.*?)<\/' . $Block['name'] . '>[ ]*$/i', $Line['text'], $matches)) # close
+        if (preg_match('/(.*?)<\/' . $Block['name'] . '>[ ]*$/i', $Line['text']))
         {
             if ($Block['depth'] > 0) {
                 $Block['depth']--;
@@ -1404,7 +1404,7 @@ class Sideways
         ];
 
         if ($this->extra) {
-            $remainder = $Link !== null ? substr($Excerpt['text'], $Link['extent']) : '';
+            $remainder = substr($Excerpt['text'], $Link['extent']);
 
             if (preg_match('/^[ ]*{(' . $this->regexAttribute . '+)}/', $remainder, $matches)) {
                 $Link['element']['attributes'] += $this->parseAttributeData($matches[1]);
@@ -1931,33 +1931,29 @@ class Sideways
 
     // "Extra"
 
-    protected function blockAbbreviation($Line)
+    protected function blockAbbreviation($Line): ?array
     {
         if (preg_match('/^\*\[(.+?)\]:[ ]*(.+?)[ ]*$/', $Line['text'], $matches)) {
             $this->DefinitionData['Abbreviation'][$matches[1]] = $matches[2];
 
-            $Block = [
-                'hidden' => true,
-            ];
-
-            return $Block;
+            return ['hidden' => true];
         }
+        return null;
     }
 
-    protected function blockFootnote($Line)
+    protected function blockFootnote($Line): ?array
     {
         if (preg_match('/^\[\^(.+?)\]:[ ]?(.*)$/', $Line['text'], $matches)) {
-            $Block = [
+            return [
                 'label'  => $matches[1],
                 'text'   => $matches[2],
                 'hidden' => true,
             ];
-
-            return $Block;
         }
+        return null;
     }
 
-    protected function blockFootnoteContinue($Line, $Block)
+    protected function blockFootnoteContinue($Line, $Block): ?array
     {
         if ($Line['text'][0] === '[' and preg_match('/^\[\^(.+?)\]:/', $Line['text'])) {
             return null;
@@ -1974,6 +1970,7 @@ class Sideways
 
             return $Block;
         }
+        return null;
     }
 
     protected function blockFootnoteComplete($Block)
@@ -1987,7 +1984,7 @@ class Sideways
         return $Block;
     }
 
-    protected function blockDefinitionList($Line, $Block)
+    protected function blockDefinitionList($Line, $Block): ?array
     {
         if (!isset($Block) or $Block['type'] !== 'Paragraph') {
             return null;
@@ -2004,7 +2001,7 @@ class Sideways
             $Element['elements'] [] = [
                 'name'    => 'dt',
                 'handler' => [
-                    'function'    => 'lineElements',
+                    'function'    => $this->lineElements(...),
                     'argument'    => $term,
                     'destination' => 'elements',
                 ],
@@ -2013,42 +2010,38 @@ class Sideways
 
         $Block['element'] = $Element;
 
-        $Block = $this->addDdElement($Line, $Block);
+        return $this->addDdElement($Line, $Block);
+    }
+
+    protected function blockDefinitionListContinue($Line, array $Block): ?array
+    {
+        if ($Line['text'][0] === ':') {
+            return $this->addDdElement($Line, $Block);
+        }
+
+        if (isset($Block['interrupted']) and $Line['indent'] === 0) {
+            return null;
+        }
+
+        if (isset($Block['interrupted'])) {
+            $Block['dd']['handler']['function'] = $this->textElements(...);
+            $Block['dd']['handler']['argument'] .= "\n\n";
+
+            $Block['dd']['handler']['destination'] = 'elements';
+
+            unset($Block['interrupted']);
+        }
+
+        $text = substr($Line['body'], min($Line['indent'], 4));
+
+        $Block['dd']['handler']['argument'] .= "\n" . $text;
 
         return $Block;
     }
 
-    protected function blockDefinitionListContinue($Line, array $Block)
-    {
-        if ($Line['text'][0] === ':') {
-            $Block = $this->addDdElement($Line, $Block);
+    private int $footnoteCount = 0;
 
-            return $Block;
-        } else {
-            if (isset($Block['interrupted']) and $Line['indent'] === 0) {
-                return null;
-            }
-
-            if (isset($Block['interrupted'])) {
-                $Block['dd']['handler']['function'] = 'textElements';
-                $Block['dd']['handler']['argument'] .= "\n\n";
-
-                $Block['dd']['handler']['destination'] = 'elements';
-
-                unset($Block['interrupted']);
-            }
-
-            $text = substr($Line['body'], min($Line['indent'], 4));
-
-            $Block['dd']['handler']['argument'] .= "\n" . $text;
-
-            return $Block;
-        }
-    }
-
-    private $footnoteCount = 0;
-
-    protected function inlineFootnoteMarker($Excerpt)
+    protected function inlineFootnoteMarker($Excerpt): ?array
     {
         if (preg_match('/^\[\^(.+?)\]/', $Excerpt['text'], $matches)) {
             $name = $matches[1];
@@ -2078,12 +2071,13 @@ class Sideways
                 'element' => $Element,
             ];
         }
+        return null;
     }
 
-    private $currentAbreviation;
-    private $currentMeaning;
+    private string $currentAbreviation;
+    private string $currentMeaning;
 
-    protected function insertAbreviation(array $Element)
+    protected function insertAbreviation(array $Element): array
     {
         if (isset($Element['text'])) {
             $Element['elements'] = self::pregReplaceElements(
@@ -2108,7 +2102,7 @@ class Sideways
 
     //region "Extra" Utility Methods (Apparently Unused)
 
-    protected function addDdElement(array $Line, array $Block)
+    protected function addDdElement(array $Line, array $Block): array
     {
         $text = substr($Line['text'], 1);
         $text = trim($text);
@@ -2118,14 +2112,14 @@ class Sideways
         $Block['dd'] = [
             'name'    => 'dd',
             'handler' => [
-                'function'    => 'lineElements',
+                'function'    => $this->lineElements(...),
                 'argument'    => $text,
                 'destination' => 'elements',
             ],
         ];
 
         if (isset($Block['interrupted'])) {
-            $Block['dd']['handler']['function'] = 'textElements';
+            $Block['dd']['handler']['function'] = $this->textElements(...);;
 
             unset($Block['interrupted']);
         }
@@ -2135,7 +2129,7 @@ class Sideways
         return $Block;
     }
 
-    protected function buildFootnoteElement()
+    protected function buildFootnoteElement(): array
     {
         $Element = [
             'name'       => 'div',
@@ -2222,7 +2216,7 @@ class Sideways
         return $Element;
     }
 
-    protected function parseAttributeData($attributeString)
+    protected function parseAttributeData($attributeString): array
     {
         $Data = [];
 
@@ -2244,7 +2238,7 @@ class Sideways
         return $Data;
     }
 
-    protected function processTag($elementMarkup) # recursive
+    protected function processTag($elementMarkup): array|false|string # recursive
     {
         # http://stackoverflow.com/q/1148928/200145
         libxml_use_internal_errors(true);
@@ -2273,7 +2267,7 @@ class Sideways
             foreach ($DOMDocument->documentElement->childNodes as $Node) {
                 $nodeMarkup = $DOMDocument->saveHTML($Node);
 
-                if ($Node instanceof DOMElement and !in_array($Node->nodeName, $this->textLevelElements)) {
+                if ($Node instanceof DOMElement and !in_array($Node->nodeName, $this->textLevelElements, true)) {
                     $elementText .= $this->processTag($nodeMarkup);
                 } else {
                     $elementText .= $nodeMarkup;
@@ -2285,9 +2279,7 @@ class Sideways
         $DOMDocument->documentElement->nodeValue = 'placeholder\x1A';
 
         $markup = $DOMDocument->saveHTML($DOMDocument->documentElement);
-        $markup = str_replace('placeholder\x1A', $elementText, $markup);
-
-        return $markup;
+        return str_replace('placeholder\x1A', $elementText, $markup);
     }
 
     protected function sortFootnotes($A, $B) # callback
@@ -2295,7 +2287,7 @@ class Sideways
         return $A['number'] - $B['number'];
     }
 
-    protected $regexAttribute = '(?:[#.][-\w]+[ ]*)';
+    protected string $regexAttribute = '(?:[#.][-\w]+[ ]*)';
 
     //endregion
 
@@ -2317,6 +2309,7 @@ class Sideways
                 'Table' => $this->blockTable(...),
                 // Extra
                 'Abbreviation' => $this->blockAbbreviation(...),
+                'DefinitionList' => $this->blockDefinitionList(...),
                 'Footnote' => $this->blockFootnote(...),
 
                 default => null,
@@ -2330,6 +2323,7 @@ class Sideways
                 'Markup' => $this->blockMarkupContinue(...),
                 'Table' => $this->blockTableContinue(...),
                 // Extra
+                'DefinitionList' => $this->blockDefinitionListContinue(...),
                 'Footnote' => $this->blockFootnoteContinue(...),
                 default => null,
             },
@@ -2362,6 +2356,4 @@ class Sideways
             default => throw new InvalidArgumentException("Invalid method type: $type"),
         };
     }
-
-
 }
