@@ -52,11 +52,54 @@ Received packages are presumed to have been verified by WordPress.org using [Plu
 ## Package Metadata Mapping
 
 ### .org Requirements
-- 
-
-
+#### [Plugin Readmes](https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/)
+  - Plugin Name
+  - Contributors (comma-separated list of wordpress.org usernames)
+  - Tags (comma-separated list of 1-12 tags describing the plugin; only first 5 show, more than 12 detrimental to SEO)
+  - Donate Link
+  - License
+  - License URI
+  - Required WordPress version (minimum)
+  - Tested up to (highest WP version tested)
+  - Required PHP version (minimum)
+  - Stable tag (latest stable subversion tag; default "trunk")
+  - Short Description (2-3 sentences, 150 characters, no markup)
+  - Long Description (full description, no character limit)
+  - Installation (instruction)
+  - FAQ
+  - Screenshot(s)
+  - Change Log (list changes by most recent)
+  - Upgrade Notice (why user should upgrade, up to 300 characters)
+Max readme.txt file size is 10k for .org
 [Plugin Readme Generator](https://generatewp.com/plugin-readme/)
 
+#### [Plugin Headers](https://developer.wordpress.org/plugins/plugin-basics/header-requirements/)
+- Plugin Name
+- Plugin URI
+- Description (short)
+- Version (current)
+- Requires at least (minimum WP version)
+- Requires PHP (minimum PHP version)
+- Author (comma-separated if multiple)
+- License
+- License URI
+- Text Domain
+- Domain Path (used for locating translations)
+- Network (if network activation is supported)
+- Update URI (used for disambiguation of slugs, [per dev note](https://make.wordpress.org/core/2021/06/29/introducing-update-uri-plugin-header-in-wordpress-5-8/))
+- Requires Plugins (comma-separated list of wp slugs) [per dev note](https://make.wordpress.org/core/2024/03/05/introducing-plugin-dependencies-in-wordpress-6-5/))
 
-
+Property 	Required? 	Constraints
+id 	yes 	A valid DID.
+type 	yes 	A string that conforms to the rules of type.
+license 	yes 	A string that conforms to the rules of license
+authors 	yes 	A list that conforms to the rules of authors
+security 	yes 	A list that conforms to the rules of security
+releases 	yes 	A list of Releases
+slug 	no 	A string that conforms to the rules of slug
+name 	no 	A string.
+description 	no 	A string.
+keywords 	no 	A list of strings.
+sections 	no 	A map that conforms to the rules of sections
+_links 	no 	HAL links, with defined relationships
 
