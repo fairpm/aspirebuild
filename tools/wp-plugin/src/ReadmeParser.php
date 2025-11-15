@@ -4,11 +4,10 @@ namespace AspireBuild\Tools\WpPlugin;
 
 use AspireBuild\Util\Regex;
 use Normalizer;
-use Parsedown;
 use stdClass;
 
-// Note: this class is solely concerned with _parsing_ the readme file, including parsing markdown where expected.
-// Some basic validation is done, but otherwise this does no further sanitizing or conversion of data.
+// Note: this class is solely concerned with parsing the _structure_ of the readme file, including rendering markdown
+// where it's expected.  Some basic validation is done, but further sanitizing or data conversion happens later.
 
 class ReadmeParser
 {
@@ -44,13 +43,17 @@ class ReadmeParser
         'license uri'       => 'license_uri',
     ];
 
+    /** @var list<string> */
+    private array $_lines;
+
     // returns an object so that we may substitute a real class later
     public function parse(string $str): stdClass
     {
         $str = $this->ensure_utf8($str);
-        $contents = array_map(fn($line) => rtrim($line, "\r\n"), preg_split('!\R!u', $str));
 
-        $fields = [
+        $this->_lines = array_map(fn($line) => rtrim($line, "\r\n"), preg_split('!\R!u', $str));
+
+        $defaults = [
             'name'              => '',
             'short_description' => '',
             'tags'              => [],
@@ -65,18 +68,24 @@ class ReadmeParser
             'sections'          => [],
         ];
 
-        [$fields['name'], $contents] = $this->parse_plugin_name($contents);
-        [$raw_headers, $contents] = $this->parse_headers($contents);
-        [$fields['short_description'], $contents] = $this->parse_short_description($contents);
-        [$fields['sections'],] = $this->parse_sections($contents);
+        $plugin_name = $this->parse_plugin_name();
+        $raw_headers = $this->parse_headers();
+        $short_description = $this->parse_short_description();
+        $sections = $this->parse_sections();
 
-        $fields = [...$fields, ...$this->extract_fields_from_headers($raw_headers)];
-        $fields = $this->fixup_sections($fields);
+        $fields = [
+            'name'              => $plugin_name,
+            'short_description' => $short_description,
+            'sections'          => $sections,
+            ...$this->extract_fields_from_headers($raw_headers),
+        ];
 
-        return (object)[...$fields, '_warnings' => $this->warnings];
+        $fields = $this->fixup_fields($fields);
+
+        return (object)[...$defaults, ...$fields, '_warnings' => $this->warnings];
     }
 
-    protected function ensure_utf8(string $str): string
+    private function ensure_utf8(string $str): string
     {
         if (str_starts_with($str[0], "\xFF\xFE")) {
             // UTF-16 BOM detected, convert to UTF8.  This is our only attempt at encoding detection.
@@ -94,41 +103,44 @@ class ReadmeParser
         return normalizer_normalize($str, Normalizer::FORM_C);
     }
 
-    protected function parse_first_nonblank_line(array $contents): array
+    private function parse_first_nonblank_line(): string
     {
-        while (($line = array_shift($contents)) !== null) {
+        while (($line = array_shift($this->_lines)) !== null) {
             if (trim($line) !== '') {
-                break;
+                return $line;
             }
         }
-        return [$line ?? '', $contents];
+        return $line;
     }
 
-    protected function parse_plugin_name(array $contents): array
+    private function eat_header_underlines(): void
     {
-        [$line, $contents] = $this->parse_first_nonblank_line($contents);
+        while (!empty($this->_lines) && '' === trim($this->_lines[0], '=-')) {
+            array_shift($this->_lines);
+        }
+    }
+
+    private function parse_plugin_name(): string
+    {
+        $line = $this->parse_first_nonblank_line();
 
         $name = htmlspecialchars(strip_tags(trim($line, "#= \t\0\x0B")));
 
         if ($this->parse_possible_header($line, true)) {
-            array_unshift($contents, $line);
+            array_unshift($this->_lines, $line);
             $this->warnings['invalid_plugin_name_header'] = true;
-            $name = false;
+            return '';
         }
 
-        // Strip header underlines
-        while (!empty($contents) && '' === trim($contents[0], '=-')) {
-            array_shift($contents);
-        }
-
-        return [$name, $contents];
+        $this->eat_header_underlines();
+        return $name;
     }
 
-    protected function parse_headers(array $contents): array
+    private function parse_headers(): array
     {
         $headers = [];
 
-        [$line, $contents] = $this->parse_first_nonblank_line($contents);
+        $line = $this->parse_first_nonblank_line();
         $last_line_was_blank = false;
         do {
             $value = null;
@@ -157,20 +169,20 @@ class ReadmeParser
             }
 
             $last_line_was_blank = false;
-        } while (($line = array_shift($contents)) !== null);
+        } while (($line = array_shift($this->_lines)) !== null);
 
-        array_unshift($contents, $line);
+        array_unshift($this->_lines, $line);
 
-        return [$headers, $contents];
+        return $headers;
     }
 
 
-    protected function read_comma_separated(string $input): array
+    private function read_comma_separated(string $input): array
     {
         return array_values(array_filter(array_map(trim(...), explode(',', $input))));
     }
 
-    protected function extract_fields_from_headers(array $headers): array
+    private function extract_fields_from_headers(array $headers): array
     {
         return [
             'tags'         => $this->read_comma_separated($headers['tags'] ?? ''),
@@ -185,7 +197,7 @@ class ReadmeParser
         ];
     }
 
-    protected function fixup_sections(array $fields): array
+    private function fixup_fields(array $fields): array
     {
         $sections = $fields['sections'];
 
@@ -233,38 +245,32 @@ class ReadmeParser
         return $fields;
     }
 
-    protected function parse_short_description(array $contents): array
+    private function parse_short_description(): string
     {
         $short_description = '';
 
-        while (($line = array_shift($contents)) !== null) {
+        while (($line = array_shift($this->_lines)) !== null) {
             $trimmed = trim($line);
             if (empty($trimmed)) {
                 continue;
             }
-            if (('=' === $trimmed[0] && isset($trimmed[1]) && '=' === $trimmed[1])
-                || ('#' === $trimmed[0]
-                    && isset($trimmed[1])
-                    && '#' === $trimmed[1])
-            ) {
-                // Stop after any Markdown heading.
-                array_unshift($contents, $line);
+
+            if (Regex::matches('/^(?:==|##)/', $trimmed)) {
+                array_unshift($this->_lines, $line);
                 break;
             }
 
             $short_description .= $line . ' ';
         }
-        $short_description = trim($short_description);
-
-        return [$short_description, $contents, []];
+        return trim($short_description);
     }
 
-    protected function parse_sections(array $contents): array
+    private function parse_sections(): array
     {
         $sections = array_fill_keys(self::expected_sections, '');
         $current = '';
         $section_name = '';
-        while (($line = array_shift($contents)) !== null) {
+        while (($line = array_shift($this->_lines)) !== null) {
             $trimmed = trim($line);
             if (empty($trimmed)) {
                 $current .= "\n";
@@ -302,13 +308,10 @@ class ReadmeParser
             $sections[$section_name] .= trim($current);
         }
 
-        // Filter out any empty sections.
-        $sections = array_filter($sections);
-
-        return [$sections, $contents];
+        return array_filter($sections);
     }
 
-    protected function parse_possible_header(string $line, bool $only_valid = false): false|array
+    private function parse_possible_header(string $line, bool $only_valid = false): false|array
     {
         if (!str_contains($line, ':') || str_starts_with($line, '#') || str_starts_with($line, '=')) {
             return false;
@@ -325,7 +328,7 @@ class ReadmeParser
         return [$key, $value];
     }
 
-    protected function read_stable_tag(string $tag): string
+    private function read_stable_tag(string $tag): string
     {
         $tag = trim($tag);
         $tag = trim($tag, '"\''); // "trunk"
@@ -337,14 +340,14 @@ class ReadmeParser
         return $tag;
     }
 
-    protected function extract_version(string $str): string
+    private function extract_version(string $str): string
     {
         return Regex::extract('(\d+(\.\d+){1,2})', $str);
     }
 
-    protected function render_markdown(string $text): string
+    private function render_markdown(string $text): string
     {
-        return (new Parsedown)
+        return (new Sideways)
             ->setSafeMode(true)
             ->setUrlsLinked(true)
             ->text($text);
@@ -357,7 +360,7 @@ class ReadmeParser
     public const array ignore_tags = ['plugin', 'wordpress'];
 
         // Not used: We'll parse the DOM of the rendered markdown instead
-        protected function parse_section(array|string $lines): array
+        private function parse_section(array|string $lines): array
         {
             $key = $value = '';
             $return = [];
@@ -436,7 +439,7 @@ class ReadmeParser
         //     $fields['license'] = trim(str_replace($url, '', $headers['license']), " -*\t\n\r(");
         // }
 
-    protected function validate_license(string $license): bool|string
+    private function validate_license(string $license): bool|string
     {
         // https://www.gnu.org/licenses/license-list.en.html for possible compatible licenses.
         $probably_compatible = [
@@ -528,7 +531,7 @@ class ReadmeParser
 
     // we are definitely not making database lookups in a parser
 
-    protected function sanitize_contributors(array $users): array
+    private function sanitize_contributors(array $users): array
     {
         foreach ($users as $i => $name) {
             // Trim any leading `@` off the name, in the event that someone uses `@joe-bloggs`.
@@ -557,7 +560,7 @@ class ReadmeParser
     }
 
     // we can limit tags in post-processing
-    protected function read_tags_header(string $input): array
+    private function read_tags_header(string $input): array
     {
         $tags = explode(',', $input);
         $tags = array_map(trim(...), $tags);

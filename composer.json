@@ -10,7 +10,6 @@
         "thecodingmachine/safe": "^3.3",
         "ext-intl": "*",
         "ext-mbstring": "*",
-        "erusev/parsedown": "^1.7",
         "symfony/var-dumper": "^7.3"
     },
     "require-dev": {
