@@ -2,10 +2,9 @@
 
 namespace Tests\AspireBuild\Tools\Sideways;
 
+use AspireBuild\Tools\Sideways\Sideways;
 
-use AspireBuild\Tools\Sideways\Parsedown;
-
-class TestParsedown extends Parsedown
+class TestSideways extends Sideways
 {
     public function getTextLevelElements()
     {

@@ -13,9 +13,8 @@
 #
 #
 
-namespace AspireBuild\Tools\Sideways\Extra;
+namespace AspireBuild\Tools\Sideways;
 
-use AspireBuild\Tools\Sideways\Parsedown;
 use DOMDocument;
 use DOMElement;
 use Exception;

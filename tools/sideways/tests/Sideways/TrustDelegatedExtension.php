@@ -2,9 +2,9 @@
 
 namespace Tests\AspireBuild\Tools\Sideways;
 
-use AspireBuild\Tools\Sideways\Parsedown;
+use AspireBuild\Tools\Sideways\Sideways;
 
-class TrustDelegatedExtension extends Parsedown
+class TrustDelegatedExtension extends Sideways
 {
     protected function blockFencedCodeComplete($Block)
     {

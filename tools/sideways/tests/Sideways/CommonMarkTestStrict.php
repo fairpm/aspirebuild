@@ -4,9 +4,10 @@ namespace Tests\AspireBuild\Tools\Sideways;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Sideways\TestSideways;
 
 /**
- * Test Parsedown against the CommonMark spec
+ * Test Sideways against the CommonMark spec
  *
  * @link http://commonmark.org/ CommonMark
  */
@@ -14,12 +15,12 @@ class CommonMarkTestStrict extends TestCase
 {
     const SPEC_URL = 'https://raw.githubusercontent.com/jgm/CommonMark/master/spec.txt';
 
-    protected $parsedown;
+    protected $sideways;
 
     protected function setUp(): void
     {
-        $this->parsedown = new TestParsedown();
-        $this->parsedown->setUrlsLinked(false);
+        $this->sideways = new TestSideways();
+        $this->sideways->setUrlsLinked(false);
     }
 
     /**
@@ -31,18 +32,18 @@ class CommonMarkTestStrict extends TestCase
     #[DataProvider('data')]
     public function testExample($id, $section, $markdown, $expectedHtml)
     {
-        $actualHtml = $this->parsedown->text($markdown);
+        $actualHtml = $this->sideways->text($markdown);
         $this->assertEquals($expectedHtml, $actualHtml);
     }
 
     /**
      * @return array
      */
-    public function data()
+    public static function data()
     {
         $spec = file_get_contents(self::SPEC_URL);
         if ($spec === false) {
-            $this->fail('Unable to load CommonMark spec from ' . self::SPEC_URL);
+            self::fail('Unable to load CommonMark spec from ' . self::SPEC_URL);
         }
 
         $spec = str_replace("\r\n", "\n", $spec);

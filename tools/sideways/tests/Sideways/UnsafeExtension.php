@@ -2,9 +2,9 @@
 
 namespace Tests\AspireBuild\Tools\Sideways;
 
-use AspireBuild\Tools\Sideways\Parsedown;
+use AspireBuild\Tools\Sideways\Sideways;
 
-class UnsafeExtension extends Parsedown
+class UnsafeExtension extends Sideways
 {
     protected function blockFencedCodeComplete($Block)
     {

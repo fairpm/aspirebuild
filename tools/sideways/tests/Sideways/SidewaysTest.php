@@ -2,29 +2,29 @@
 
 namespace Tests\AspireBuild\Tools\Sideways;
 
-use AspireBuild\Tools\Sideways\Parsedown;
+use AspireBuild\Tools\Sideways\Sideways;
 use DirectoryIterator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-class ParsedownTest extends TestCase
+class SidewaysTest extends TestCase
 {
 
     private $dirs;
-    protected $Parsedown;
+    protected $Sideways;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->Parsedown = $this->initParsedown();
+        $this->Sideways = $this->initSideways();
     }
 
     /**
-     * @return Parsedown
+     * @return Sideways
      */
-    protected function initParsedown()
+    protected function initSideways()
     {
-        return new TestParsedown();
+        return new TestSideways();
     }
 
     /**
@@ -41,10 +41,10 @@ class ParsedownTest extends TestCase
         $expectedMarkup = str_replace("\r\n", "\n", $expectedMarkup);
         $expectedMarkup = str_replace("\r", "\n", $expectedMarkup);
 
-        $this->Parsedown->setSafeMode(substr($test, 0, 3) === 'xss');
-        $this->Parsedown->setStrictMode(substr($test, 0, 6) === 'strict');
+        $this->Sideways->setSafeMode(substr($test, 0, 3) === 'xss');
+        $this->Sideways->setStrictMode(substr($test, 0, 6) === 'strict');
 
-        $actualMarkup = $this->Parsedown->text($markdown);
+        $actualMarkup = $this->Sideways->text($markdown);
 
         $this->assertEquals($expectedMarkup, $actualMarkup);
     }
@@ -159,27 +159,27 @@ class ParsedownTest extends TestCase
             <p>&lt;!-- html comment --&gt;</p>
             EXPECTED_HTML;
 
-        $parsedownWithNoMarkup = new TestParsedown();
-        $parsedownWithNoMarkup->setMarkupEscaped(true);
+        $sidewaysWithNoMarkup = new TestSideways();
+        $sidewaysWithNoMarkup->setMarkupEscaped(true);
 
-        $this->assertEquals($expectedHtml, $parsedownWithNoMarkup->text($markdownWithHtml));
+        $this->assertEquals($expectedHtml, $sidewaysWithNoMarkup->text($markdownWithHtml));
     }
 
     public function testLateStaticBinding()
     {
-        $parsedown = Parsedown::instance();
-        $this->assertInstanceOf(Parsedown::class, $parsedown);
+        $sideways = Sideways::instance();
+        $this->assertInstanceOf(Sideways::class, $sideways);
 
-        // After instance is already called on Parsedown
+        // After instance is already called on Sideways
         // subsequent calls with the same arguments return the same instance
-        $sameParsedown = TestParsedown::instance();
-        $this->assertInstanceOf(Parsedown::class, $sameParsedown);
-        $this->assertSame($parsedown, $sameParsedown);
+        $sameSideways = TestSideways::instance();
+        $this->assertInstanceOf(Sideways::class, $sameSideways);
+        $this->assertSame($sideways, $sameSideways);
 
-        $testParsedown = TestParsedown::instance('test late static binding');
-        $this->assertInstanceOf(TestParsedown::class, $testParsedown);
+        $testSideways = TestSideways::instance('test late static binding');
+        $this->assertInstanceOf(TestSideways::class, $testSideways);
 
-        $sameInstanceAgain = TestParsedown::instance('test late static binding');
-        $this->assertSame($testParsedown, $sameInstanceAgain);
+        $sameInstanceAgain = TestSideways::instance('test late static binding');
+        $this->assertSame($testSideways, $sameInstanceAgain);
     }
 }

@@ -4,7 +4,7 @@ namespace Tests\AspireBuild\Tools\Sideways\Extra;
 
 use PHPUnit\Framework\TestCase;
 
-class ParseDownExtraTest extends TestCase
+class SidewaysExtraTest extends TestCase
 {
     public function test_in_a_sane_way(): void
     {
