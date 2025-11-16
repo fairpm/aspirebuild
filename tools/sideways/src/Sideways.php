@@ -29,11 +29,38 @@
 
 namespace AspireBuild\Tools\Sideways;
 
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Abbreviation;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Code;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Comment;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\DefinitionList;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\FencedCode;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Footnote;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\FootnoteMarker;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Header;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\List_;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Markup;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Paragraph;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Quote;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Reference;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Rule;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\SetextHeader;
+use AspireBuild\Tools\Sideways\Nodes\Blocks\Table;
+use AspireBuild\Tools\Sideways\Nodes\Spans\EmailTag;
+use AspireBuild\Tools\Sideways\Nodes\Spans\Emphasis;
+use AspireBuild\Tools\Sideways\Nodes\Spans\EscapeSequence;
+use AspireBuild\Tools\Sideways\Nodes\Spans\Image;
+use AspireBuild\Tools\Sideways\Nodes\Spans\Link;
+use AspireBuild\Tools\Sideways\Nodes\Spans\SpecialCharacter;
+use AspireBuild\Tools\Sideways\Nodes\Spans\Strikethrough;
+use AspireBuild\Tools\Sideways\Nodes\Spans\Text;
+use AspireBuild\Tools\Sideways\Nodes\Spans\Url;
+use AspireBuild\Tools\Sideways\Nodes\Spans\UrlTag;
 use AspireBuild\Util\Regex;
 use Closure;
 use DOMDocument;
 use DOMElement;
 use InvalidArgumentException;
+use RuntimeException;
 
 class Sideways
 {
@@ -48,14 +75,14 @@ class Sideways
         protected readonly bool $extra = false,
     ) {
         if ($extra) {
-            $this->BlockTypes[':'][] = 'DefinitionList';
-            $this->BlockTypes['*'][] = 'Abbreviation';
+            $this->BlockTypes[':'][] = DefinitionList::class;
+            $this->BlockTypes['*'][] = Abbreviation::class;
 
             # identify footnote definitions before reference definitions
-            array_unshift($this->BlockTypes['['], 'Footnote');
+            array_unshift($this->BlockTypes['['], Footnote::class);
 
             # identify footnote markers before before links
-            array_unshift($this->InlineTypes['['], 'FootnoteMarker');
+            array_unshift($this->InlineTypes['['], FootnoteMarker::class);
         }
     }
 
@@ -78,48 +105,46 @@ class Sideways
     ];
 
     protected array $BlockTypes = [
-        '#' => ['Header'],
-        '*' => ['Rule', 'List'],
-        '+' => ['List'],
-        '-' => ['SetextHeader', 'Table', 'Rule', 'List'],
-        '0' => ['List'],
-        '1' => ['List'],
-        '2' => ['List'],
-        '3' => ['List'],
-        '4' => ['List'],
-        '5' => ['List'],
-        '6' => ['List'],
-        '7' => ['List'],
-        '8' => ['List'],
-        '9' => ['List'],
-        ':' => ['Table'],
-        '<' => ['Comment', 'Markup'],
-        '=' => ['SetextHeader'],
-        '>' => ['Quote'],
-        '[' => ['Reference'],
-        '_' => ['Rule'],
-        '`' => ['FencedCode'],
-        '|' => ['Table'],
-        '~' => ['FencedCode'],
+        '#' => [Header::class],
+        '*' => [Rule::class, List_::class],
+        '+' => [List_::class],
+        '-' => [SetextHeader::class, Table::class, Rule::class, List_::class],
+        '0' => [List_::class],
+        '1' => [List_::class],
+        '2' => [List_::class],
+        '3' => [List_::class],
+        '4' => [List_::class],
+        '5' => [List_::class],
+        '6' => [List_::class],
+        '7' => [List_::class],
+        '8' => [List_::class],
+        '9' => [List_::class],
+        ':' => [Table::class],
+        '<' => [Comment::class, Markup::class],
+        '=' => [SetextHeader::class],
+        '>' => [Quote::class],
+        '[' => [Reference::class],
+        '_' => [Rule::class],
+        '`' => [FencedCode::class],
+        '|' => [Table::class],
+        '~' => [FencedCode::class],
     ];
 
-    protected array $unmarkedBlockTypes = [
-        'Code',
-    ];
+    protected array $unmarkedBlockTypes = [Code::class];
 
     protected string $regexAttribute = '(?:[#.][-\w]+[ ]*)';
 
     protected array $InlineTypes = [
-        '!'  => ['Image'],
-        '&'  => ['SpecialCharacter'],
-        '*'  => ['Emphasis'],
-        ':'  => ['Url'],
-        '<'  => ['UrlTag', 'EmailTag', 'Markup'],
-        '['  => ['Link'],
-        '_'  => ['Emphasis'],
-        '`'  => ['Code'],
-        '~'  => ['Strikethrough'],
-        '\\' => ['EscapeSequence'],
+        '!'  => [Image::class],
+        '&'  => [SpecialCharacter::class],
+        '*'  => [Emphasis::class],
+        ':'  => [Url::class],
+        '<'  => [UrlTag::class, EmailTag::class, Markup::class],
+        '['  => [Link::class],
+        '_'  => [Emphasis::class],
+        '`'  => [Code::class],
+        '~'  => [Strikethrough::class],
+        '\\' => [EscapeSequence::class],
     ];
 
     protected string $inlineMarkerList = '!*_&[:<`~\\';
@@ -349,7 +374,7 @@ class Sideways
             }
 
 
-            if (isset($CurrentBlock) and $CurrentBlock['type'] === 'Paragraph') {
+            if (isset($CurrentBlock) and $CurrentBlock['type'] === Paragraph::class) {
                 $Block = $this->paragraphContinue($Line, $CurrentBlock);
             }
 
@@ -402,7 +427,7 @@ class Sideways
 
     protected function blockCode(Line $Line, ?array $Block = null): ?array
     {
-        if (isset($Block) and $Block['type'] === 'Paragraph' and !isset($Block['interrupted'])) {
+        if (isset($Block) and $Block['type'] === Paragraph::class and !isset($Block['interrupted'])) {
             return null;
         }
 
@@ -649,7 +674,7 @@ class Sideways
                 if ($listStart !== '1') {
                     if (
                         isset($CurrentBlock)
-                        and $CurrentBlock['type'] === 'Paragraph'
+                        and $CurrentBlock['type'] === Paragraph::class
                         and !isset($CurrentBlock['interrupted'])
                     ) {
                         return null;
@@ -820,7 +845,7 @@ class Sideways
 
     protected function blockSetextHeader(Line $Line, ?array $Block = null): ?array
     {
-        if (!isset($Block) or $Block['type'] !== 'Paragraph' or isset($Block['interrupted'])) {
+        if (!isset($Block) or $Block['type'] !== Paragraph::class or isset($Block['interrupted'])) {
             return null;
         }
 
@@ -997,7 +1022,7 @@ class Sideways
 
     protected function blockTable($Line, ?array $Block = null): ?array
     {
-        if (!isset($Block) or $Block['type'] !== 'Paragraph' or isset($Block['interrupted'])) {
+        if (!isset($Block) or $Block['type'] !== Paragraph::class or isset($Block['interrupted'])) {
             return null;
         }
 
@@ -1161,7 +1186,7 @@ class Sideways
     protected function paragraph(Line $Line): array
     {
         return [
-            'type'    => 'Paragraph',
+            'type'    => Paragraph::class,
             'element' => [
                 'name'    => 'p',
                 'handler' => [
@@ -1963,7 +1988,7 @@ class Sideways
 
     protected function blockDefinitionList(Line $Line, array $Block): ?array
     {
-        if (!isset($Block) or $Block['type'] !== 'Paragraph') {
+        if (!isset($Block) or $Block['type'] !== Paragraph::class) {
             return null;
         }
 
@@ -2267,61 +2292,58 @@ class Sideways
         /** @noinspection PhpExpressionAlwaysNullInspection (false positive) */
         return match ($name) {
             'block' => match ($type) {
-                'Code' => $this->blockCode(...),
-                'Comment' => $this->blockComment(...),
-                'FencedCode' => $this->blockFencedCode(...),
-                'Header' => $this->blockHeader(...),
-                'List' => $this->blockList(...),
-                'Quote' => $this->blockQuote(...),
-                'Rule' => $this->blockRule(...),
-                'SetextHeader' => $this->blockSetextHeader(...),
-                'Markup' => $this->blockMarkup(...),
-                'Reference' => $this->blockReference(...),
-                'Table' => $this->blockTable(...),
+                Code::class => $this->blockCode(...),
+                Comment::class => $this->blockComment(...),
+                FencedCode::class => $this->blockFencedCode(...),
+                Header::class => $this->blockHeader(...),
+                List_::class => $this->blockList(...),
+                Quote::class => $this->blockQuote(...),
+                Rule::class => $this->blockRule(...),
+                SetextHeader::class => $this->blockSetextHeader(...),
+                Markup::class => $this->blockMarkup(...),
+                Reference::class => $this->blockReference(...),
+                Table::class => $this->blockTable(...),
                 // Extra
-                'Abbreviation' => $this->blockAbbreviation(...),
-                'DefinitionList' => $this->blockDefinitionList(...),
-                'Footnote' => $this->blockFootnote(...),
-                default => null,
+                Abbreviation::class => $this->blockAbbreviation(...),
+                DefinitionList::class => $this->blockDefinitionList(...),
+                Footnote::class => $this->blockFootnote(...),
+                // default => null,
+                default => throw new RuntimeException("Unknown block '$type'"),
             },
             'continue' => match ($type) {
-                'Code' => $this->blockCodeContinue(...),
-                'Comment' => $this->blockCommentContinue(...),
-                'FencedCode' => $this->blockFencedCodeContinue(...),
-                'List' => $this->blockListContinue(...),
-                'Quote' => $this->blockQuoteContinue(...),
-                'Markup' => $this->blockMarkupContinue(...),
-                'Table' => $this->blockTableContinue(...),
-                // Extra
-                'DefinitionList' => $this->blockDefinitionListContinue(...),
-                'Footnote' => $this->blockFootnoteContinue(...),
+                Code::class => $this->blockCodeContinue(...),
+                Comment::class => $this->blockCommentContinue(...),
+                FencedCode::class => $this->blockFencedCodeContinue(...),
+                List_::class => $this->blockListContinue(...),
+                Quote::class => $this->blockQuoteContinue(...),
+                Markup::class => $this->blockMarkupContinue(...),
+                Table::class => $this->blockTableContinue(...),
+                DefinitionList::class => $this->blockDefinitionListContinue(...),
+                Footnote::class => $this->blockFootnoteContinue(...),
                 default => null,
             },
             'complete' => match ($type) {
-                'Code' => $this->blockCodeComplete(...),
-                'FencedCode' => $this->blockFencedCodeComplete(...),
-                'List' => $this->blockListComplete(...),
-                // Extra
-                'Markup' => $this->blockMarkupComplete(...),
-                'Footnote' => $this->blockFootnoteComplete(...),
+                Code::class => $this->blockCodeComplete(...),
+                FencedCode::class => $this->blockFencedCodeComplete(...),
+                List_::class => $this->blockListComplete(...),
+                Markup::class => $this->blockMarkupComplete(...),
+                Footnote::class => $this->blockFootnoteComplete(...),
                 default => null,
             },
             'inline' => match ($type) {
-                'Text' => $this->inlineText(...),
-                'Code' => $this->inlineCode(...),
-                'EmailTag' => $this->inlineEmailTag(...),
-                'Emphasis' => $this->inlineEmphasis(...),
-                'EscapeSequence' => $this->inlineEscapeSequence(...),
-                'Image' => $this->inlineImage(...),
-                'Link' => $this->inlineLink(...),
-                'Markup' => $this->inlineMarkup(...),
-                'SpecialCharacter' => $this->inlineSpecialCharacter(...),
-                'Strikethrough' => $this->inlineStrikethrough(...),
-                'Url' => $this->inlineUrl(...),
-                'UrlTag' => $this->inlineUrlTag(...),
-                //
-                'FootnoteMarker' => $this->inlineFootnoteMarker(...),
-                // default => throw new InvalidArgumentException("Unknown inline type: $type"),
+                Text::class => $this->inlineText(...),
+                Code::class => $this->inlineCode(...),
+                EmailTag::class => $this->inlineEmailTag(...),
+                Emphasis::class => $this->inlineEmphasis(...),
+                EscapeSequence::class => $this->inlineEscapeSequence(...),
+                Image::class => $this->inlineImage(...),
+                Link::class => $this->inlineLink(...),
+                Markup::class => $this->inlineMarkup(...),
+                SpecialCharacter::class => $this->inlineSpecialCharacter(...),
+                Strikethrough::class => $this->inlineStrikethrough(...),
+                Url::class => $this->inlineUrl(...),
+                UrlTag::class => $this->inlineUrlTag(...),
+                FootnoteMarker::class => $this->inlineFootnoteMarker(...),
                 default => null,
             },
             default => throw new InvalidArgumentException("Invalid method type: $type"),
