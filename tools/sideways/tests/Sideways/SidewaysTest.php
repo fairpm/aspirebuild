@@ -23,7 +23,7 @@ class SidewaysTest extends TestCase
         $safeMode = str_starts_with($test, 'xss');
         $strictMode = str_starts_with($test, 'strict');
 
-        $sideways = new TestSideways(safeMode: $safeMode, strictMode: $strictMode);
+        $sideways = new Sideways(safeMode: $safeMode, strictMode: $strictMode);
 
         $actualMarkup = $sideways->text($markdown);
 
@@ -141,26 +141,8 @@ class SidewaysTest extends TestCase
             <p>&lt;!-- html comment --&gt;</p>
             EXPECTED_HTML;
 
-        $sidewaysWithNoMarkup = new TestSideways(markupEscaped: true);
+        $sidewaysWithNoMarkup = new Sideways(markupEscaped: true);
 
         $this->assertEquals($expectedHtml, $sidewaysWithNoMarkup->text($markdownWithHtml));
-    }
-
-    public function testLateStaticBinding(): void
-    {
-        $sideways = Sideways::instance();
-        $this->assertInstanceOf(Sideways::class, $sideways);
-
-        // After instance is already called on Sideways
-        // subsequent calls with the same arguments return the same instance
-        $sameSideways = TestSideways::instance();
-        $this->assertInstanceOf(Sideways::class, $sameSideways);
-        $this->assertSame($sideways, $sameSideways);
-
-        $testSideways = TestSideways::instance('test late static binding');
-        $this->assertInstanceOf(TestSideways::class, $testSideways);
-
-        $sameInstanceAgain = TestSideways::instance('test late static binding');
-        $this->assertSame($testSideways, $sameInstanceAgain);
     }
 }

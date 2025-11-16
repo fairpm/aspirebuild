@@ -1819,21 +1819,6 @@ class Sideways
         return stripos($string, strtolower($needle)) === 0;
     }
 
-    public static function instance($name = 'default')
-    {
-        if (isset(self::$instances[$name])) {
-            return self::$instances[$name];
-        }
-
-        $instance = new static();
-
-        self::$instances[$name] = $instance;
-
-        return $instance;
-    }
-
-    private static array $instances = [];
-
     protected array $DefinitionData = [];
 
     protected array $specialCharacters = [

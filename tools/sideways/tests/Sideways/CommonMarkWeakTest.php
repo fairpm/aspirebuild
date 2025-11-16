@@ -2,6 +2,7 @@
 
 namespace Tests\AspireBuild\Tools\Sideways;
 
+use AspireBuild\Tools\Sideways\Sideways;
 use AspireBuild\Util\Regex;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -24,13 +25,13 @@ use RuntimeException;
 class CommonMarkWeakTest extends TestCase
 {
     protected string $textLevelElementRegex;
-    protected TestSideways $sideways;
+    protected Sideways $sideways;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->sideways = new TestSideways(urlsLinked: false);
+        $this->sideways = new Sideways(urlsLinked: false);
 
         $textLevelElements = $this->sideways->getTextLevelElements();
         array_walk($textLevelElements, function (&$element) {

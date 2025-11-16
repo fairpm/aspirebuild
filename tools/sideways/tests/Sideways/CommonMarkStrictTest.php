@@ -2,6 +2,7 @@
 
 namespace Tests\AspireBuild\Tools\Sideways;
 
+use AspireBuild\Tools\Sideways\Sideways;
 use AspireBuild\Util\Regex;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
@@ -15,11 +16,11 @@ use PHPUnit\Framework\TestCase;
 #[Group('commonmark')]
 class CommonMarkStrictTest extends TestCase
 {
-    protected TestSideways $sideways;
+    protected Sideways $sideways;
 
     protected function setUp(): void
     {
-        $this->sideways = new TestSideways(urlsLinked: false);
+        $this->sideways = new Sideways(urlsLinked: false);
     }
 
     /** @noinspection PhpUnusedParameterInspection */
