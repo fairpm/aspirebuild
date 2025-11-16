@@ -3,24 +3,13 @@
 namespace Sideways;
 
 use Tests\AspireBuild\Tools\Sideways\SidewaysTestCase;
-use PHPUnit\Framework\ExpectationFailedException;
 
-// Remember to only make one assertion per test method, since they will throw on the first failure
+// Ideally this class will have no tests.  Til then, verify we still haven't implemented any of them
 class ExpectedFailuresTest extends SidewaysTestCase
 {
-    protected function setUp(): void
+    public function test_xfail_ghfm_headers(): void
     {
-        parent::setUp();
-        $this->expectException(ExpectationFailedException::class);
-    }
-
-    public function test_ghfm_h1(): void
-    {
-        $this->assertRender('= Header =', '<h1>Header</h1>');
-    }
-
-    public function test_ghfm_h2(): void
-    {
-        $this->assertRender('== Header ==', '<h2>Header</h2>');
+        expect($this->render('= Header ='))->notToBe('<h1>Header</h1>');
+        expect($this->render('== Header =='))->notToBe('<h2>Header</h2>');
     }
 }

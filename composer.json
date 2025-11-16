@@ -16,7 +16,8 @@
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",
-        "phpunit/phpunit": "^12.4"
+        "phpunit/phpunit": "^12.4",
+        "codeception/verify": "^3.3"
     },
     "autoload": {
         "psr-4": {

@@ -16,13 +16,14 @@ class SidewaysTestCase extends TestCase {
         $this->parser = $this->newParser();
     }
 
+    /** override this method to pass additional args to Sideways constructor */
     protected function newParser(): Sideways
     {
         return new Sideways();
     }
 
-    protected function assertRender(string $markdown, string $expectedHtml): void
+    protected function render(string $markdown): string
     {
-        static::assertSame($expectedHtml, $this->parser->renderToHtml($markdown));
+        return $this->parser->renderToHtml($markdown);
     }
 }
