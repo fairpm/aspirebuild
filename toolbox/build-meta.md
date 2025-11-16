@@ -5,7 +5,7 @@ This JSON metadata document is _separate_ from the publisher-provided (signed) *
 | Key       | Req'd | Data Source                | Value, FAIR Format          |
 | --------- | ----- | -------------------------- | --------------------------- |
 | `id`      | yes   | package DID                | DID (cache DID document     |
-| 'package` | yes   | plugin slug                | package-build-meta document |
+| `package` | yes   | plugin slug                | package-build-meta document |
 | `release` | yes   | version from plugin header | releae-build-meta document  |
 
 
@@ -26,10 +26,13 @@ This JSON metadata document contains meta which relates to the package generally
 
 ### Project Health Document
 
-This JSON metadata document contains compiled meta for assessing the overall health of the project and application of best practices. For examples of factors to evaluate, see
+This JSON metadata document contains compiled meta for assessing the overall health of the project and application of best practices. For examples of factors to be evaluated, see
 - [How to creaate a healthy GitHub repository](https://joost.blog/healthy-github-repository/)
 - [OpenSSF Scorecard](https://scorecard.dev/)
 - [OpenCode Badge Program](https://opencode.de/en/knowledge/software-index/badges-en)
+- [AspireBuild Toolbox](toolbox/readme.md)
+- [Validation Tools](toolbox/validation-toolchain/readme.md)
+- [Verification Tools](toolbox/verification-toolchain/readme.md)
 
 | Key                 | Req'd | Data Source                | Value, FAIR Format                           |
 | ------------------- | ----- | -------------------------- | -------------------------------------------- |
