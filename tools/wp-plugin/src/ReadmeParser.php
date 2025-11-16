@@ -2,7 +2,9 @@
 
 namespace AspireBuild\Tools\WpPlugin;
 
+use AspireBuild\Util\Filesystem;
 use AspireBuild\Util\Regex;
+use Ds\Deque;
 use HTMLPurifier;
 use HTMLPurifier_Config;
 use League\CommonMark\Environment\Environment;
@@ -51,14 +53,13 @@ class ReadmeParser
         'license uri'       => 'license_uri',
     ];
 
-    /** @var list<string> */
-    private array $input;
+    private Deque $input;
 
     public function parse(string $str): ParsedReadme
     {
         $str = $this->ensure_utf8($str);
 
-        $this->input = array_map(fn($line) => rtrim($line, "\r\n"), preg_split('!\R!u', $str));
+        $this->input = new Deque(array_map(fn($line) => rtrim($line, "\r\n"), preg_split('!\R!u', $str)));
 
         $defaults = [
             'name'              => '',
@@ -127,7 +128,8 @@ class ReadmeParser
 
     private function parse_first_nonblank_line(): ?string
     {
-        while (($line = $this->_input_shift()) !== null) {
+        while (!$this->input->isEmpty()) {
+            $line = $this->input->shift();
             if (trim($line) !== '') {
                 return $line;
             }
@@ -135,26 +137,10 @@ class ReadmeParser
         return null;
     }
 
-    // at this point i may as well use a deque.  TODO: use the ds extension and do that.
-    private function _input_put_back(string $line): void
-    {
-        array_unshift($this->input, $line);
-    }
-
-    private function _input_shift(): ?string
-    {
-        return array_shift($this->input);
-    }
-
-    private function _input_peek(): ?string
-    {
-        return $this->input[0] ?? null;
-    }
-
     private function eat_header_underlines(): void
     {
-        while (!empty($this->input) && trim($this->input[0], '=-') === '') {
-            array_shift($this->input);
+        while (!$this->input->isEmpty() && trim($this->input[0], '=-') === '') {
+            $this->input->shift();
         }
     }
 
@@ -167,7 +153,7 @@ class ReadmeParser
         $parsed = $this->read_header($line);
 
         if ($parsed && !isset(self::valid_headers[$parsed[0]])) {
-            $this->_input_put_back($line);
+            $this->input->unshift($line);
             $this->warnings['invalid_plugin_name_header'] = true;
             return '';
         }
@@ -209,9 +195,9 @@ class ReadmeParser
             }
 
             $last_line_was_blank = false;
-        } while (($line = $this->_input_shift()) !== null);
+        } while (($line = $this->input->shift()) !== null);
 
-        $this->_input_put_back($line);
+        $this->input->unshift($line);
 
         return $headers;
     }
@@ -289,14 +275,15 @@ class ReadmeParser
     {
         $short_description = '';
 
-        while (($line = $this->_input_shift()) !== null) {
+        while (!$this->input->isEmpty()) {
+            $line = $this->input->shift();
             $trimmed = trim($line);
             if (empty($trimmed)) {
                 continue;
             }
 
             if (Regex::matches('/^(?:==|##)/', $trimmed)) {
-                $this->_input_put_back($line);
+                $this->input->unshift($line);
                 break;
             }
 
@@ -310,7 +297,8 @@ class ReadmeParser
         $sections = array_fill_keys(self::expected_sections, '');
         $current = '';
         $section_name = '';
-        while (($line = $this->_input_shift()) !== null) {
+        while (!$this->input->isEmpty()) {
+            $line = $this->input->shift();
             $trimmed = trim($line);
             if (empty($trimmed)) {
                 $current .= "\n";
@@ -422,7 +410,9 @@ class ReadmeParser
     private function _get_html_purifier(): HtmlPurifier
     {
         $config = HTMLPurifier_Config::createDefault();
-        $config->set('Core', 'SerializerPath', tempnam(sys_get_temp_dir(), 'htmlpurifier_'));
+        // we don't really need this yet
+        // $config->set('Cache.SerializerPath', Filesystem::mktempdir(prefix: 'htmlpurifier_'));
+        $config->set('Cache.SerializerPath', null);
         return new HTMLPurifier($config);
     }
 

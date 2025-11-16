@@ -61,6 +61,7 @@
             ctype
             curl
             dom
+            ds
             ffi
             filter
             gettext

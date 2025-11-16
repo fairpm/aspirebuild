@@ -14,7 +14,8 @@
         "ext-dom": "*",
         "ext-libxml": "*",
         "league/commonmark": "^2.7",
-        "ezyang/htmlpurifier": "^4.19"
+        "ezyang/htmlpurifier": "^4.19",
+        "ext-ds": "*"
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",
