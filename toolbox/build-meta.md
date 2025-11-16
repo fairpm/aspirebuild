@@ -5,27 +5,39 @@ This JSON metadata document is _separate_ from the publisher-provided (signed) *
 | Key       | Req'd | Data Source                | Value, FAIR Format          |
 | --------- | ----- | -------------------------- | --------------------------- |
 | `id`      | yes   | package DID                | DID (cache DID document     |
-| 'package' | yes   | plugin slug                | package-build-meta document |
-| `release` | yes   | version from plugin header | releae-build-meta document  |                      |
+| 'package` | yes   | plugin slug                | package-build-meta document |
+| `release` | yes   | version from plugin header | releae-build-meta document  |
 
 
 ## Package Build Meta Document
 
 This JSON metadata document contains meta which relates to the package generally rather than to a specific release.
 
-| Key                 | Req'd | Data Source                | Value, FAIR Format             |
-| ------------------- | ----- | -------------------------- | ------------------------------ |
-| `domain_alias`      | no    | external dns validation    | string with result             |
-| `domain_reputation` | no    | external checks, APIs      | json list with results         |
-| `domain_rbls`       | no    | external checks, APIs      | json list with results         |
-| `provenance`        | no    | publisher attestations     | json document                  |
-| 'project_health`    | no    | generated                  | json `project-health` document |
+| Key                 | Req'd | Data Source                   | Value, FAIR Format                     |
+| ------------------- | ----- | ----------------------------- | -------------------------------------- |
+| `domain_alias`      | no    | external dns validation       | string with result                     |
+| `domain_reputation` | no    | external checks, APIs         | json list with results                 |
+| `domain_rbls`       | no    | external checks, APIs         | json list with results                 |
+| `provenance`        | no    | publisher attestations        | json document                          |
+| `project_health`    | no    | generated                     | json `project-health` document         |
+| `package_labels`    | no    | various labellers             | json list of appied labels             |
+| `build_meta_labels` | no    | various tools in AB toolchain | json list of labels from compiled meta |
 
 
 ### Project Health Document
 
-| Key                 | Req'd | Data Source                | Value, FAIR Format             |
-| ------------------- | ----- | -------------------------- | ------------------------------ |
+This JSON metadata document contains compiled meta for assessing the overall health of the project and application of best practices. For examples of factors to evaluate, see
+- [How to creaate a healthy GitHub repository](https://joost.blog/healthy-github-repository/)
+- [OpenSSF Scorecard](https://scorecard.dev/)
+- [OpenCode Badge Program](https://opencode.de/en/knowledge/software-index/badges-en)
+
+| Key                 | Req'd | Data Source                | Value, FAIR Format                           |
+| ------------------- | ----- | -------------------------- | -------------------------------------------- |
+| `repo_scan`         | no    | scan canonical repo        | json list                                    |
+| `contributors`      | no    | scan canonical repo        | json list: contrib count & confirm contributing.md present |
+| `release_history`   | no    |                            |                                              |
+| `policy_check`      | no    |                            | json list: privacy policy, CoC, VDP          |
+| `release_labels`    | no    | various labellers          | json list of release-specific labels applied |
 
 
 ## Release Build Meta Document
@@ -44,8 +56,19 @@ This JSON metadata document contains meta wich relates to a specific release (ve
 | `file_permissions` | no    | code scan                  | world-write octal permissions; corrected?    |
 | `phpcs`            | no    | code scan                  | scan result as json document                 |
 | `malware_scan`     | no    | code scan and/or API       | scan result as json document                 |
+| `runtime`          | no    | runtime monitoring         | json [runtime build meta document](#runtime-build-meta-document) |
 
 
+### Runtime Build Meta Document
+
+This JSON metadata document contains meta gleaned from runtime testing to ensure there is no unexpected filesystem or http activity. Tests are also run to confirm no excessive or slow database queries and to assess the package's overall effect on site performance.
+
+| Key                | Req'd | Data Source                | Value, FAIR Format   |
+| ------------------ | ----- | -------------------------- | -------------------- |
+| `filesystem`       | no    | runtime monitoring tests   | results as json list |
+| `http`             | no    | runtime monitoring tests   | results as json list |
+| `db_queries`       | no    | runtime monitoring tests   | results as json list |
+| `performance`      | no    | runtime monitoring tests   | results as json list |
 
 
 
