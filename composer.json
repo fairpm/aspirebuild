@@ -22,13 +22,11 @@
     "autoload": {
         "psr-4": {
             "AspireBuild\\": "src",
-            "AspireBuild\\Tools\\Sideways\\": "tools/sideways/src/",
             "AspireBuild\\Tools\\WpPlugin\\": "tools/wp-plugin/src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Tests\\AspireBuild\\Tools\\Sideways\\": "tools/sideways/tests/Sideways/",
             "Tests\\AspireBuild\\Tools\\WpPlugin\\": "tools/wp-plugin/tests/"
         }
     }
