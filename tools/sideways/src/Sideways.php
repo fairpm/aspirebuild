@@ -272,7 +272,7 @@ class Sideways
 
             if ($this->_footnotes) {
                 $Element = $this->buildFootnoteElement();
-                $markup .= "\n" . $this->element($Element);
+                $markup .= "\n" . $this->renderElement($Element);
             }
         }
 
@@ -1648,7 +1648,7 @@ class Sideways
     protected function unmarkedText(string $text): string
     {
         $Inline = $this->inlineText($text);
-        return $this->element($Inline['element']);
+        return $this->renderElement($Inline['element']);
     }
 
     protected function handle(array $Element): array
@@ -1658,16 +1658,9 @@ class Sideways
                 $Element['nonNestables'] = [];
             }
 
-            if (is_string($Element['handler'])) {
-                $function = $Element['handler'];
-                $argument = $Element['text'];
-                unset($Element['text']);
-                $destination = 'rawHtml';
-            } else {
-                $function = $Element['handler']['function'];
-                $argument = $Element['handler']['argument'];
-                $destination = $Element['handler']['destination'];
-            }
+            $function = $Element['handler']['function'];
+            $argument = $Element['handler']['argument'];
+            $destination = $Element['handler']['destination'];
 
             $Element[$destination] = $function($argument, $Element['nonNestables']);
 
@@ -1735,7 +1728,7 @@ class Sideways
         return $Elements;
     }
 
-    protected function element(array $Element): string
+    protected function renderElement(array $Element): string
     {
         if ($this->safeMode) {
             $Element = $this->sanitiseElement($Element);
@@ -1767,18 +1760,15 @@ class Sideways
         if (isset($Element['text'])) {
             $text = $Element['text'];
         }
-        // very strongly consider an alternative if you're writing an
-        // extension
+        // very strongly consider an alternative if you're writing an extension
         elseif (isset($Element['rawHtml'])) {
             $text = $Element['rawHtml'];
 
-            $allowRawHtmlInSafeMode = isset($Element['allowRawHtmlInSafeMode']) && $Element['allowRawHtmlInSafeMode'];
+            $allowRawHtmlInSafeMode = $Element['allowRawHtmlInSafeMode'] ?? false;
             $permitRawHtml = !$this->safeMode || $allowRawHtmlInSafeMode;
         }
 
-        $hasContent = isset($text) || isset($Element['element']) || isset($Element['elements']);
-
-        if ($hasContent) {
+        if (isset($text) || isset($Element['element']) || isset($Element['elements'])) {
             $markup .= $hasName ? '>' : '';
 
             $text ??= '';
@@ -1786,7 +1776,7 @@ class Sideways
             if (isset($Element['elements'])) {
                 $markup .= $this->elements($Element['elements']);
             } elseif (isset($Element['element'])) {
-                $markup .= $this->element($Element['element']);
+                $markup .= $this->renderElement($Element['element']);
             } elseif (!$permitRawHtml) {
                 $markup .= self::escape($text, true);
             } else {
@@ -1816,7 +1806,7 @@ class Sideways
             // (autobreak === false) covers both sides of an element
             $autoBreak = !$autoBreak ? $autoBreak : $autoBreakNext;
 
-            $markup .= ($autoBreak ? "\n" : '') . $this->element($Element);
+            $markup .= ($autoBreak ? "\n" : '') . $this->renderElement($Element);
             $autoBreak = $autoBreakNext;
         }
 
