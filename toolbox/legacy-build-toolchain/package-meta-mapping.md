@@ -80,7 +80,7 @@ Max readme.txt file size is 10k for .org
 
 
 
-## Summary: FAIR Package-Meta Mapping to Legacy Source
+## Summary: FAIR Package-Meta Mapping from Legacy Source
 
 | FAIR Meta   | Explicit?     | Source                              | FAIR Format        |
 | ----------- | ------------- | ----------------------------------- | ------------------ |
@@ -89,18 +89,62 @@ Max readme.txt file size is 10k for .org
 | license     | Infer/convert | readme.txt & plugin headers         | [SPDX License Expression](https://spdx.github.io/spdx-spec/v3.0.1/annexes/spdx-license-expressions/); the protocol doesn't call for a url or license file, but should be included; make this json instead? WP meta has License URI & should contain a file copy |
 | authors     | Yes           | `contributors` in readme.txt & `authors` in plugin headers; extend via profiles.wordpress.org/[username] |
 | security    | Yes           | Use author/contributor if individual, else WordPress.org url | json doc with author name, url, email if available; social media links; if Bluesky link available, add user's DID:PLC |
-| releases    | Yes           | Change Log, SVN                     | Release Document   |
+| releases    | Yes           | Change Log from readme.txt, SVN     | Release Document   |
 | slug        | Yes           | .org Source                         |                    |
 | name        | Yes           | readme.txt & plugin headers         |                    |
 | description | Yes           | short description from readme.txt   |                    |
-| keywords    | Yes           | tags                                |                    |
+| keywords    | Yes           | tags frome `readme.txt`             |                    |
 | sections    | Yes           | (various)                           | Sections Document  |
 | _links      | no; infer?    |                                     |                    |
 
 
 ## DID Document
 
-## Metadata Document
+## Sections Document
+
+| Key            | Source                              | Value, FAIR Format |
+| -------------- | ----------------------------------- | ------------------ |
+| changelog      | `readme.txt`                        | predefined         |
+| description    | long descriptioon from `readme.txt` | predefined         |
+| security       | security.md if available            | predefined         |
+| donate_link    | `readme.txt`                        | extended           |
+| tested_to      | `readme.txt`                        | extended           |
+| min_php_ver    | `readme.txt`                        | extended           |
+| faq            | `readme.txt`                        | extended           |
+| screenshots    | `readme.txt`                        | extended           |
+| upgrade_notice | `readme.txt`                        | extended           |
+| plugin_uri     | plugin headers                      | extended           |
+| multisite      | plugin headers                      | extended           |
+| update_url     | plugin headers                      | extended           |
+
+
+## Release Document
+
+| Key            | Source                              | Value, FAIR Format |
+| -------------- | ----------------------------------- | ------------------ |
+| version        | |
+| artifacts      | |
+| provides       | |
+| suggests       | |
+| auth           | |
+| _links         | |
+
 
 ## Repository Document
+
+| Key            | Source                              | Value, FAIR Format |
+| -------------- | ----------------------------------- | ------------------ |
+| name           | |
+| maintainers    | |
+| security       | |
+| privacy        | |
+| _links         | |
+
+
+Labels from Meta (?)
+- multisite support
+- date last updated
+- date of first release
+- 
+
 
