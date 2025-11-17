@@ -232,8 +232,6 @@ class ReadmeParserTest extends TestCase
             <p>This update did stuff and I don't remember what.  YOLO.</p>
             END;
 
-        $this->markTestIncomplete('still getting the initial render');
-
         $this->assertEquals([
             'description' => $expected_description,
             // 'faq'         => $expected_faq,
@@ -258,10 +256,12 @@ class ReadmeParserTest extends TestCase
             Donate Link: https://www.gofundyourself.com/c/hello-cthulhu
             License: GPL 3.0 or later
             License URI: https://gnu.org
-            This is not just a plugin, it symbolizes the mounting horror and insanity of an entire generation.  Ia! Ia! Cthulhu Ftagn!
+            Ia! Ia! Cthulhu Ftagn!
             == Description ==
 
-            This is not just a plugin, it symbolizes the mounting horror and insanity of an entire generation.  Ia! Ia! Cthulhu Ftagn!.
+            This is not just a plugin, it symbolizes the mounting horror and insanity of an entire generation.
+
+            [youtube https://youtu.be/ut82TDjciSg]
 
             When activated you will notice nothing, but gradually care about nothing, until your soul is an empty vessel
             into which the visions of his grand dread majesty will materialize and take form through your husk of a body
@@ -280,9 +280,17 @@ class ReadmeParserTest extends TestCase
 
             This is some stuff on top of the FAQ section.
 
-            ### Is this a FAQ?
+            = What happens if I deactivate the plugin? =
+
+            If the plugin's tendrils have fully wrapped themselves around your soul, your own body will wither and die.
+
+            = Is this a FAQ? =
 
             No.
+
+            **And stop asking questions.**
+
+            Puny creature.
 
             ## Other Notes
 
@@ -317,12 +325,14 @@ class ReadmeParserTest extends TestCase
         $parser = new ReadmeParser();
         $readme = $parser->parse($hello_cthulhu);
 
+        // dd($readme->sections['faq']);
+
         $arr = (array)$readme;
         $sections = $arr['sections']; // tested separately
 
         $this->assertEquals([
             'name'              => 'Hello C&#039;thulhu',
-            'short_description' => 'This is not just a plugin, it symbolizes the mounting horror and insanity of an entire generation.  Ia! Ia! Cthulhu Ftagn!',
+            'short_description' => 'Ia! Ia! Cthulhu Ftagn!',
             'tags'              => ['cthulhu', "f'tagn", 'rlyeh', 'eldritch', 'old ones'],
             'tested'            => '7.9',
             'requires_php'      => '8.8',
@@ -337,7 +347,8 @@ class ReadmeParserTest extends TestCase
         ], (array)$readme);
 
         $expected_description = <<<"END"
-            <p>This is not just a plugin, it symbolizes the mounting horror and insanity of an entire generation.  Ia! Ia! Cthulhu Ftagn!.</p>
+            <p>This is not just a plugin, it symbolizes the mounting horror and insanity of an entire generation.</p>
+            <p>[youtube <a href="https://youtu.be/ut82TDjciSg">https://youtu.be/ut82TDjciSg</a>]</p>
             <p>When activated you will notice nothing, but gradually care about nothing, until your soul is an empty vessel
             into which the visions of his grand dread majesty will materialize and take form through your husk of a body
             as you do his bidding in the hopes that you shall be among those to watch the flames which consume the universe
@@ -357,8 +368,12 @@ class ReadmeParserTest extends TestCase
 
         $expected_faq = <<<'END'
             <p>This is some stuff on top of the FAQ section.</p>
+            <h3>What happens if I deactivate the plugin?</h3>
+            <p>If the plugin's tendrils have fully wrapped themselves around your soul, your own body will wither and die.</p>
             <h3>Is this a FAQ?</h3>
             <p>No.</p>
+            <p><strong>And stop asking questions.</strong></p>
+            <p>Puny creature.</p>
 
             END;
 

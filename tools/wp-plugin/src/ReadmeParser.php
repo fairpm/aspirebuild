@@ -2,11 +2,11 @@
 
 namespace AspireBuild\Tools\WpPlugin;
 
-use AspireBuild\Util\Filesystem;
 use AspireBuild\Util\Regex;
 use Ds\Deque;
 use HTMLPurifier;
 use HTMLPurifier_Config;
+use http\Exception\RuntimeException;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\Autolink\AutolinkExtension;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
@@ -16,8 +16,8 @@ use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\MarkdownConverter;
 use Normalizer;
 
-// Note: this class is solely concerned with parsing the _structure_ of the readme file, including rendering markdown
-// where it's expected.  Some basic validation is done, but further sanitizing or data conversion happens later.
+// Note: The metadata returned by this class still requires further processing downstream, specifically to
+//       look up authors, generate screenshot links, check licenses, and substutute shortcodes like [youtube].
 
 class ReadmeParser
 {
@@ -164,10 +164,9 @@ class ReadmeParser
 
     private function parse_headers(): array
     {
-        $headers = [];
-
         $line = $this->parse_first_nonblank_line();
         $last_line_was_blank = false;
+        $headers = [];
         do {
             $value = null;
             $header = $this->read_header($line);
@@ -202,7 +201,6 @@ class ReadmeParser
         return $headers;
     }
 
-
     private function read_comma_separated(string $input): array
     {
         return array_values(array_filter(array_map(trim(...), explode(',', $input))));
@@ -231,10 +229,13 @@ class ReadmeParser
             $sections['description'] = $fields['short_description'];
         }
 
-        // FIXME: hack that should be done differently...
         if (!empty($sections['other_notes'])) {
             $sections['description'] .= "\n" . $sections['other_notes'];
             unset($sections['other_notes']);
+        }
+
+        if (!empty($sections['faq'])) {
+            $sections['faq'] = $this->fixup_faq_markdown($sections['faq']);
         }
 
         foreach ($sections as $section => $content) {
@@ -247,10 +248,9 @@ class ReadmeParser
             $sections[$section] = $this->render_markdown($newcontent);
         }
 
-        // fixup short_description
         $short_description = $fields['short_description'];
 
-        // Use the first line of the description for the short description if not provided.
+        // Default short description to first line of description.
         if (!$short_description && !empty($sections['description'])) {
             $short_description = array_filter(explode("\n", $sections['description']))[0];
             $this->warnings['no_short_description_present'] = true;
@@ -264,11 +264,56 @@ class ReadmeParser
             }
             $short_description = $trimmed;
         }
+
         $fields['short_description'] = $short_description;
-
-
         $fields['sections'] = $sections;
         return $fields;
+    }
+
+    private function fixup_faq_markdown(string $markdown): string {
+        // the algorithm in legacy is to look for the first heading, treating '== Foo ==' as a heading
+        // as well as '** Foo **', then assume the rest of the headings are consistent with that style.
+        // the faqs array then becomes an array of [heading => content] pairs where content is whatever follows
+        // the heading up til the next heading or the end of the section.  Headings are not strictly parsed to the
+        // markdown standard: any line beginning with '#' or '=' is a heading, as is any bold line ('**' on both ends)
+
+        // Although markdown supports dd/dt, it's oriented toward single lines, and we want arbitrary content,
+        // so we'll take the expedient of just normalizing the custom-formatted headers to h3 markdown instead (###),
+        // then using the DOM parser on the rendered html to collect the <h3> elements and their following siblings.
+
+        $match = Regex::matches('/^(?:[=#]+.*|\*\*.*\*\*\$)$/m', $markdown);
+
+        if (!$match) {
+            // no headers, so just return the markdown as-is.
+            return $markdown;
+        }
+
+        $header = $match[0];
+        if (str_starts_with($header, '=')) {
+            // Using the '== Foo ==' style of header, which we convert to ###.
+            $markdown = Regex::replace('/^=+(.*?)=+$/m', '### $1', $markdown);
+        } elseif (str_starts_with($header, '#')) {
+            // replace all headers with ### regardless of their current level
+            $markdown = Regex::replace('/^#+(.*?)#*$/m', '### $1', $markdown);
+        } elseif (str_starts_with($header, '**')) {
+            // replace all bolded lines with ###
+            $markdown = Regex::replace('/^\*{2,6}(.*?)\*{2,6}$)/m', '### $1', $markdown);
+        } else {
+            // shouldn't happen
+            throw new RuntimeException("Unexpected header style: $header");
+        }
+
+        return $markdown;
+    }
+
+    private function fixup_faq_html(string $html): string {
+        // with a parsed 'faq' array, we did something like this
+        //         $sections['faq'] .= "\n<dl>\n";
+        //         foreach ($faq as $question => $answer) {
+        //             $question_slug = rawurlencode(strtolower(trim($question)));
+        //             $sections['faq'] .= "<dt id='$question_slug'><h3>$question</h3></dt>\n<dd>$answer</dd>\n";
+        //         }
+        //         $sections['faq'] .= "\n</dl>\n";
     }
 
     private function parse_short_description(): string
@@ -421,85 +466,85 @@ class ReadmeParser
     // we can strip stop-words like this later, it doesn't belong here.
     public const array ignore_tags = ['plugin', 'wordpress'];
 
-        // Not used: We'll parse the DOM of the rendered markdown instead
-        private function parse_section(array|string $lines): array
-        {
-            $key = $value = '';
-            $return = [];
+    // Not used: We'll parse the DOM of the rendered markdown instead
+    private function parse_section(array|string $lines): array
+    {
+        $key = $value = '';
+        $return = [];
 
-            if (!is_array($lines)) {
-                $lines = explode("\n", $lines);
+        if (!is_array($lines)) {
+            $lines = explode("\n", $lines);
+        }
+        $trimmed_lines = array_map('trim', $lines);
+
+
+         // The heading style being matched in the block. Can be 'heading' or 'bold'.
+         // Standard Markdown headings (## .. and == ... ==) are used, but if none are present.
+         // full line bolding will be used as a heading style.
+
+        $heading_style = 'bold'; // 'heading' or 'bold'
+        foreach ($trimmed_lines as $trimmed) {
+            if ($trimmed && ($trimmed[0] === '#' || $trimmed[0] === '=')) {
+                $heading_style = 'heading';
+                break;
             }
-            $trimmed_lines = array_map('trim', $lines);
-
-
-             // The heading style being matched in the block. Can be 'heading' or 'bold'.
-             // Standard Markdown headings (## .. and == ... ==) are used, but if none are present.
-             // full line bolding will be used as a heading style.
-
-            $heading_style = 'bold'; // 'heading' or 'bold'
-            foreach ($trimmed_lines as $trimmed) {
-                if ($trimmed && ($trimmed[0] === '#' || $trimmed[0] === '=')) {
-                    $heading_style = 'heading';
-                    break;
-                }
-            }
-
-            $line_count = count($lines);
-            for ($i = 0; $i < $line_count; $i++) {
-                $line = &$lines[$i];
-                $trimmed = &$trimmed_lines[$i];
-                if (!$trimmed) {
-                    $value .= "\n";
-                    continue;
-                }
-
-                $is_heading = false;
-                if ('heading' === $heading_style && ($trimmed[0] === '#' || $trimmed[0] === '=')) {
-                    $is_heading = true;
-                } elseif ('bold' === $heading_style && (str_starts_with($trimmed, '**') && str_ends_with($trimmed, '**'))) {
-                    $is_heading = true;
-                }
-
-                if ($is_heading) {
-                    if ($value) {
-                        $return[$key] = trim($value);
-                    }
-
-                    $value = '';
-                    // Trim off the first character of the line, as we know that's the heading style we're expecting to remove.
-                    $key = trim($line, $trimmed[0] . " \t");
-                    continue;
-                }
-
-                $value .= $line . "\n";
-            }
-
-            if ($key || $value) {
-                $return[$key] = trim($value);
-            }
-
-            return $return;
         }
 
-        // Validate the license specified.
-        // if (!$fields['license']) {
-        //     $this->warnings['license_missing'] = true;
-        // } else {
-        //     $license_error = $this->validate_license($fields['license']);
-        //     if (true !== $license_error) {
-        //         $this->warnings[$license_error] = $fields['license'];
-        //     }
-        // }
+        $line_count = count($lines);
+        for ($i = 0; $i < $line_count; $i++) {
+            $line = &$lines[$i];
+            $trimmed = &$trimmed_lines[$i];
+            if (!$trimmed) {
+                $value .= "\n";
+                continue;
+            }
 
-        // Fixup license containing a url
-        // if (!empty($fields['license'])
-        //     && empty($headers['license_uri'])
-        //     && ($url = Regex::extract('!https?://\S+!i', $headers['license']))) {
-        //     // Handle the many cases of "License: GPLv2 - http://..."
-        //     $fields['license_uri'] = trim($url, " -*\t\n\r(");
-        //     $fields['license'] = trim(str_replace($url, '', $headers['license']), " -*\t\n\r(");
-        // }
+            $is_heading = false;
+            if ('heading' === $heading_style && ($trimmed[0] === '#' || $trimmed[0] === '=')) {
+                $is_heading = true;
+            } elseif ('bold' === $heading_style && (str_starts_with($trimmed, '**') && str_ends_with($trimmed, '**'))) {
+                $is_heading = true;
+            }
+
+            if ($is_heading) {
+                if ($value) {
+                    $return[$key] = trim($value);
+                }
+
+                $value = '';
+                // Trim off the first character of the line, as we know that's the heading style we're expecting to remove.
+                $key = trim($line, $trimmed[0] . " \t");
+                continue;
+            }
+
+            $value .= $line . "\n";
+        }
+
+        if ($key || $value) {
+            $return[$key] = trim($value);
+        }
+
+        return $return;
+    }
+
+    // Validate the license specified.
+    // if (!$fields['license']) {
+    //     $this->warnings['license_missing'] = true;
+    // } else {
+    //     $license_error = $this->validate_license($fields['license']);
+    //     if (true !== $license_error) {
+    //         $this->warnings[$license_error] = $fields['license'];
+    //     }
+    // }
+
+    // Fixup license containing a url
+    // if (!empty($fields['license'])
+    //     && empty($headers['license_uri'])
+    //     && ($url = Regex::extract('!https?://\S+!i', $headers['license']))) {
+    //     // Handle the many cases of "License: GPLv2 - http://..."
+    //     $fields['license_uri'] = trim($url, " -*\t\n\r(");
+    //     $fields['license'] = trim(str_replace($url, '', $headers['license']), " -*\t\n\r(");
+    // }
 
     private function validate_license(string $license): bool|string
     {
@@ -654,9 +699,7 @@ class ReadmeParser
         //         $sections['faq'] .= "\n</dl>\n";
         //     }
         // }
-
-
-
     */
+
 
 }
