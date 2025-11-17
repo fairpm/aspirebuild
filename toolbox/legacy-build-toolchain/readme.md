@@ -6,30 +6,31 @@ This toolchain consists of tools for taking a WordPress package (plugin or theme
 
 Received packages are presumed to have been verified by WordPress.org using [Plugin Check](https://github.com/WordPress/theme-check/tree/master/checks) or [Theme Check](https://github.com/WordPress/plugin-check/tree/trunk) processes from the Plugins Team or Themes Team. The intent is that they "inherit" trust from .org verification processes and can safely be mirrored. These packages will nevertheless be passed through other toolchains to perform more stringent checks.
 
-### Step 1: File Preparation
+### Step 1: File & Record Preparation
   - Unzip/decompress received archives if necessary
-  - Check received/unpacked files for anything world-writable (octal - - 6 or - - 7)
-  - Log result & correct file permissions as needed
-  - Output logged results as json to new build-meta by DID
-
-### Step 2: DID Check & Assign
-  - Check for any DID advertised within the received package
+  - Scan for any DID advertised within the received package
   - If none, assign DID:PLC or DID:Web (TBD)
   - Create detailed DID record
+  - Touch DID/package-meta
+  - Touch DID/build-meta
   - Append json output to build-meta
-  - Create (empty) FAIR-formatted (json) package-meta with DID
+
+### Step 2: File Permissions Fix
+  - Check received/unpacked files for anything world-writable (octal - - 6 or - - 7)
+  - Correct file permissions as needed
+  - Append logged results as json to build-meta by DID
 
 ### Step 3: Supplied Meta & Readme Parser
-  - Same parsing as is done on .or
-  - Output FAIR-formatted json to package-meta
+  - (Approximately) Same parsing as is done on .org
+  - Append FAIR-formatted json to package-meta & build-meta per spec
 
 ### Step 4: Contact Info Parser
   - Publisher contact
   - Security contact & VDP
+    - Check supplied meta & available APIs, _e.g._, https://patchstack.com/database/api/v2/vdp/elementor
     - Create security.md if missing
-    - Check available APIs, _e.g._, https://patchstack.com/database/api/v2/vdp/elementor 
   - Support channel
-  - Append contact info to package-meta & build-meta
+  - Append contact info to package-meta & build-meta per spec
 
 ### Step 5: Observed SBOM Generator
   - Code scan for dependencies & bundled libraries
