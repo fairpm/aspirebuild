@@ -32,6 +32,7 @@ This toolchain consists of tools for validating the various attributes of a pack
 ### 3. Malware Detection
 - Scan for known exploits
 - Heuristic malware scan
+- _e.g._, [DataDog GuardDog](https://github.com/DataDog/guarddog) CLI tool to Identify malicious PyPI and npm packages; includes GitHub actions
 - Append results to build-meta per spec
 
 ### 4. AI Code Detection
@@ -45,15 +46,16 @@ _(Relates to repo health: AI-generated code is less likely to be maintained unle
 - No unexpected http calls
 - No console errors
 - No PHP errors or warnings
-- Performance checks
-- [Code Profiler](https://wordpress.org/plugins/code-profiler/) / [Code Profiler](https://nintechnet.com/codeprofiler/)
+- Performance checks; _e.g._, [Code Profiler](https://wordpress.org/plugins/code-profiler/) / [Code Profiler](https://nintechnet.com/codeprofiler/)
 - Append results to build-meta per spec
 
-### 6. Package Meta Validation
+### 6. Compliance
 - Confirm required metadata is present and properly formatted
   - Publisher Contact
   - Support contact
   - Security contact
-  - SBOM
+- SBOM Validation
+  - [ScanCode](https://github.com/aboutcode-org/scancode-toolkit) detects licenses, copyrights, dependencies to discover and inventory open source and third-party packages used.
+  - [OSS Review Toolkit / ORT](https://github.com/oss-review-toolkit/ort) suite of tools to automate software compliance checks
 - Append results to build-meta per spec
 
