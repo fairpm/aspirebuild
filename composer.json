@@ -15,7 +15,9 @@
         "ext-libxml": "*",
         "league/commonmark": "^2.7",
         "ezyang/htmlpurifier": "^4.19",
-        "ext-ds": "*"
+        "ext-ds": "*",
+        "league/uri-polyfill": "^7.6",
+        "league/uri-components": "^7.6"
     },
     "require-dev": {
         "roave/security-advisories": "dev-latest",
