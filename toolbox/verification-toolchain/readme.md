@@ -4,20 +4,52 @@ This toolchain consists of tools for verifying the various attestations about a 
 
 ## Verification Tools
 
-### DID & Domain Verification
+### 1. Package Integrity
+- Confirm checksum accuracy
+- Confirm package & metadata signature
+- Unzip or unpack archive file
+
+### 2. DID & Domain Verification
 - Verify DID Document
 - Verify DNS for domain alias, if provided
-- Domain reputation
-- Check RBLs
+- If MX record exists, verify DNS includes SPF, DMARC, DKIM
+- Check domain reputation (e.g., [Spamhaus](https://www.spamhaus.org/domain-reputation/), [Cisco Talos](https://www.talosintelligence.com/reputation_center), [APIVoid](https://www.apivoid.com/api/domain-reputation/), _etc._)
+- RBL check for domain
+- Append results to build-meta per spec
 
-### CVE Checks
-- Check published CVE lists for package
-- Review time from exposure to patch for past CVEs
-
-### Label Checks
-- Third-Party labels for the package
-
-### Provenance Attestation Checks
+### 3. Provenance & Attestation Checks
 - Check for VDP
-- TBD for CRA Compliance
+- CRA Compliance TBD
+- License compatibility
+  - [Open Definition Licenses API](https://opendefinition.org/licenses/api/)
+  - [OSI Approved License API](https://opensource.org/blog/introducing-the-new-api-for-osi-approved-licenses)
+  - Verify [GPL compatibility](https://www.gnu.org/licenses/license-list.html) (FSF List)
+- Verify contact info
+  - Verify email addresses are deliverable: roll our own or use APIs like (e.g.) [Verifalia](https://verifalia.com/developers), [Email Hippo](https://tools.emailhippo.com/), or [VerifyMail](https://verifymail.io/) 
+  - Verify no disposable email addresses; roll our own or use APIs such as [Email Hippo](https://tools.emailhippo.com/Apps/Disposable_Email_Address_Detector) or [DeBounce](https://debounce.io/free-disposable-check-api/)
+  - Verify URLS provided are live and contain the required contact information
+- Append results to build-meta per spec
+
+### 4. CVE Checks
+- Check published CVE lists for package using available APIs
+  - Patchstack
+- Check time from exposure to patch for past CVEs
+- Append results to build-meta per spec
+
+### 5. Repo Profiler
+- 2FA enabled/required
+- VDP listed
+- Uses dependabot & plugin check actions
+- Count number of contributors in past _n_ months
+- Count number of commits/releases in past _n_ months
+- Repo age
+- Changelog for all releases
+- https enforced _e.g._, [testssl.sh](https://github.com/span/testssl.sh) or curl, _etc._ and check port 80 is closed or redirected
+- Append results to build-meta per spec
+
+### 6. Label Application
+- Apply labels inferred from package-meta & build-meta
+- Apply subscribed third-party labels for the package
+- Append results to build-meta per spec
+
 
