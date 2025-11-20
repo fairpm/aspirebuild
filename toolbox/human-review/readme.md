@@ -46,10 +46,13 @@ Beyond the basic package meta which is required by .org and/or FAIR, additional 
 - [OSS Summit Europe 2025 presentation](https://osseu2025.sched.com/event/25VmK/securing-software-supply-chains-opencode-as-building-block-for-sovereign-digital-infrastructure-leonhard-kugler-zentrum-digitale-souveranitat?iframe=no&w=100%&sidebar=yes&bg=no)
 
 
-## Verifiable Credentials
+## Verifiable Credentials & Trusted Publilshers
 
 At some point we may want to link respositories or packages with verifiably identified developers. For plugins with a vast number of users, some form of such verification could be recommended as a requirement at some point. Organizations and initiatives which may become relevant include
 
 - [OpenID](https://openid.net/)
 - [Trust Over IP (ToIP)](https://trustoverip.org/)
 - [Verifiable Credentials Data Model v2.0](https://www.w3.org/TR/vc-data-model/) is a W3C recommendation
+- OpenSSF: [Trusted Publishers for All Package Repositories](https://repos.openssf.org/trusted-publishers-for-all-package-repositories)
+
+
