@@ -19,7 +19,11 @@ The following resources may be helpful in identifying factors for evaluating pro
 - Community reputation of Developers, Contributors, & Publisher
 
 
-## Attestations
+# Automated & Human Review
+
+Some checks may be automated now or in future, but may not be available across different git platforms, or may require manual interpretation.
+
+## Publisher Attestations
 
 Beyond the basic package meta which is required by .org and/or FAIR, additional attestations may be valuable to building trust, particularly if they are electronically verifiable.
 
