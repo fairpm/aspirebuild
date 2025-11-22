@@ -1,25 +1,25 @@
-# Build Meta
+# FAIR Forge Meta
 
 This JSON metadata document is _separate_ from the publisher-provided (signed) **Package Meta**, and contains the meta collected by FAIR for use in evaluating the package to assign trust scores, approve for federation, apply labels, and catalogue the entry. 
 
 | Key       | Req'd | Data Source                | Value, FAIR Format          |
 | --------- | ----- | -------------------------- | --------------------------- |
 | `id`      | yes   | package DID                | DID (cache DID document     |
-| `package` | yes   | plugin slug                | package-build-meta document |
-| `release` | yes   | version from plugin header | releae-build-meta document  |
+| `package` | yes   | plugin slug                | package-forge-meta document |
+| `release` | yes   | version from plugin header | release-forge-meta document  |
 
 
-## Package Build Meta Document
+## Package Forge Meta Document
 
 This JSON metadata document contains meta which relates to the package generally rather than to a specific release.
 
-| Key                   | Req'd | Data Source                   | Value, FAIR Format                     |
-| --------------------- | ----- | ----------------------------- | -------------------------------------- |
-| `domain_verification` | no    | external dns validation       | json `domain-verification` document    |
-| `provenance`          | no    | publisher attestations        | json document                          |
-| `project_health`      | no    | generated                     | json `project-health` document         |
-| `package_labels`      | no    | various labellers             | json list of appied labels             |
-| `build_meta_labels`   | no    | various tools in AB toolchain | json list of labels from compiled meta |
+| Key                        | Req'd | Data Source                   | Value, FAIR Format                     |
+| -------------------------- | ----- | ----------------------------- | -------------------------------------- |
+| `domain_verification`      | no    | external dns validation       | json `domain-verification` document    |
+| `provenance`               | no    | publisher attestations        | json document                          |
+| `project_health`           | no    | generated                     | json `project-health` document         |
+| `package_labels`           | no    | various labellers             | json list of appied labels             |
+| `fair_forge_meta_labels`   | no    | various tools in AB toolchain | json list of labels from compiled meta |
 
 
 ### Domain Verification Document
@@ -47,7 +47,7 @@ This JSON metadata document contains compiled meta for assessing the overall hea
 | `release_labels`    | no    | various labellers          | json list of release-specific labels applied |
 
 
-## Release Build Meta Document
+## Release Forge Meta Document
 
 This JSON metadata document contains meta wich relates to a specific release (version) of the package.
 
@@ -64,10 +64,10 @@ This JSON metadata document contains meta wich relates to a specific release (ve
 | `file_permissions` | no    | code scan                  | world-write octal permissions; corrected?    |
 | `phpcs`            | no    | code scan                  | scan result as json document                 |
 | `malware_scan`     | no    | code scan and/or API       | scan result as json document                 |
-| `runtime`          | no    | runtime monitoring         | json [runtime build meta document](#runtime-build-meta-document) |
+| `runtime`          | no    | runtime monitoring         | json [runtime forge meta document](#runtime-forge-meta-document) |
 
 
-### Runtime Build Meta Document
+### Runtime Forge Meta Document
 
 This JSON metadata document contains meta gleaned from runtime testing to ensure there is no unexpected filesystem or http activity. Tests are also run to confirm no excessive or slow database queries and to assess the package's overall effect on site performance.
 
