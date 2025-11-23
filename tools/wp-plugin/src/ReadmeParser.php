@@ -2,11 +2,10 @@
 
 namespace FAIR\Forge\Tools\WpPlugin;
 
-use FAIR\Forge\Util\Regex;
 use Ds\Deque;
+use FAIR\Forge\Util\Regex;
 use HTMLPurifier;
 use HTMLPurifier_Config;
-use http\Exception\RuntimeException;
 use League\CommonMark\Environment\Environment;
 use League\CommonMark\Extension\Autolink\AutolinkExtension;
 use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
@@ -15,6 +14,7 @@ use League\CommonMark\Extension\Strikethrough\StrikethroughExtension;
 use League\CommonMark\Extension\Table\TableExtension;
 use League\CommonMark\MarkdownConverter;
 use Normalizer;
+use RuntimeException;
 
 // Note: The metadata returned by this class still requires further processing downstream, specifically to
 //       look up authors, generate screenshot links, check licenses, and substutute shortcodes like [youtube].
@@ -40,10 +40,10 @@ class ReadmeParser
     ];
 
     public const array valid_headers = [
-        'tested'            => 'tested',
-        'tested up to'      => 'tested',
-        'requires'          => 'requires',
-        'requires at least' => 'requires',
+        'tested'            => 'tested_up_to',
+        'tested up to'      => 'tested_up_to',
+        'requires'          => 'requires_wp',
+        'requires at least' => 'requires_wp',
         'requires php'      => 'requires_php',
         'tags'              => 'tags',
         'contributors'      => 'contributors',
@@ -65,8 +65,8 @@ class ReadmeParser
             'name'              => '',
             'short_description' => '',
             'tags'              => [],
-            'requires'          => '',
-            'tested'            => '',
+            'requires_wp'       => '',
+            'tested_up_to'      => '',
             'requires_php'      => '',
             'contributors'      => [],
             'stable_tag'        => '',
@@ -95,8 +95,8 @@ class ReadmeParser
             name             : $fields['name'],
             short_description: $fields['short_description'],
             tags             : $fields['tags'],
-            requires_wp      : $fields['requires'], // note the prop is named requires_wp, not requires.
-            tested           : $fields['tested'],
+            requires_wp      : $fields['requires_wp'],
+            tested_up_to     : $fields['tested_up_to'],
             requires_php     : $fields['requires_php'],
             contributors     : $fields['contributors'],
             stable_tag       : $fields['stable_tag'],
@@ -210,8 +210,8 @@ class ReadmeParser
     {
         return [
             'tags'         => $this->read_comma_separated($headers['tags'] ?? ''),
-            'requires'     => $this->read_version($headers['requires'] ?? ''),
-            'tested'       => $this->read_version($headers['tested'] ?? ''),
+            'requires_wp'  => $this->read_version($headers['requires_wp'] ?? ''),
+            'tested_up_to' => $this->read_version($headers['tested_up_to'] ?? ''),
             'requires_php' => $this->read_version($headers['requires_php'] ?? ''),
             'contributors' => $this->read_comma_separated($headers['contributors'] ?? ''),
             'stable_tag'   => $this->read_stable_tag($headers['stable_tag'] ?? ''),
@@ -270,7 +270,8 @@ class ReadmeParser
         return $fields;
     }
 
-    private function fixup_faq_markdown(string $markdown): string {
+    private function fixup_faq_markdown(string $markdown): string
+    {
         // the algorithm in legacy is to look for the first heading, treating '== Foo ==' as a heading
         // as well as '** Foo **', then assume the rest of the headings are consistent with that style.
         // the faqs array then becomes an array of [heading => content] pairs where content is whatever follows
@@ -297,7 +298,7 @@ class ReadmeParser
             $markdown = Regex::replace('/^#+(.*?)#*$/m', '### $1', $markdown);
         } elseif (str_starts_with($header, '**')) {
             // replace all bolded lines with ###
-            $markdown = Regex::replace('/^\*{2,6}(.*?)\*{2,6}$)/m', '### $1', $markdown);
+            $markdown = Regex::replace('/^\*{2,6}(.*?)\*{2,6}/m', '### $1', $markdown);
         } else {
             // shouldn't happen
             throw new RuntimeException("Unexpected header style: $header");
@@ -306,7 +307,8 @@ class ReadmeParser
         return $markdown;
     }
 
-    private function fixup_faq_html(string $html): string {
+    private function fixup_faq_html(string $html): string
+    {
         // with a parsed 'faq' array, we did something like this
         //         $sections['faq'] .= "\n<dl>\n";
         //         foreach ($faq as $question => $answer) {

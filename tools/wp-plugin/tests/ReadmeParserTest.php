@@ -35,7 +35,7 @@ class ReadmeParserTest extends TestCase
         $this->assertEquals([
             'name'              => 'Hello Dolly',
             'short_description' => 'This is not just a plugin, it symbolizes the hope and enthusiasm of an entire generation summed up in two words sung most famously by Louis Armstrong.',
-            'tested'            => '6.9',
+            'tested_up_to'      => '6.9',
             'requires_php'      => '',
             'requires_wp'       => '4.6',
             'contributors'      => ['matt', 'wordpressdotorg'],
@@ -150,7 +150,7 @@ class ReadmeParserTest extends TestCase
         $this->assertEquals([
             'name'              => 'YOLO SEO – Move Fast &amp; Break Your Site Ranking',
             'short_description' => 'YOLO SEO is the least powerful WordPress SEO plugin 〰 no kidding!',
-            'tested'            => '9.6',
+            'tested_up_to'      => '9.6',
             'requires_php'      => '6.6',
             'requires_wp'       => '2.7',
             'contributors'      => ['nobody you know', 'just you'],
@@ -233,10 +233,10 @@ class ReadmeParserTest extends TestCase
             END;
 
         $this->assertEquals([
-            'description' => $expected_description,
+            'description'    => $expected_description,
             // 'faq'         => $expected_faq,
-            'screenshots' => $expected_screenshots,
-            'changelog'   => $expected_changelog,
+            'screenshots'    => $expected_screenshots,
+            'changelog'      => $expected_changelog,
             'upgrade_notice' => $expected_upgrade_notice,
         ], $sections);
     }
@@ -334,7 +334,7 @@ class ReadmeParserTest extends TestCase
             'name'              => 'Hello C&#039;thulhu',
             'short_description' => 'Ia! Ia! Cthulhu Ftagn!',
             'tags'              => ['cthulhu', "f'tagn", 'rlyeh', 'eldritch', 'old ones'],
-            'tested'            => '7.9',
+            'tested_up_to'      => '7.9',
             'requires_php'      => '8.8',
             'requires_wp'       => '6.6',
             'contributors'      => ['chaz', 'chazworks'],
@@ -363,7 +363,6 @@ class ReadmeParserTest extends TestCase
             <pre><code>                                               Here's a way-indented line
             </code></pre>
             <p>And another regular line.</p>
-
             END;
 
         $expected_faq = <<<'END'
@@ -374,7 +373,6 @@ class ReadmeParserTest extends TestCase
             <p>No.</p>
             <p><strong>And stop asking questions.</strong></p>
             <p>Puny creature.</p>
-
             END;
 
         $expected_screenshots = <<<'END'
@@ -384,7 +382,6 @@ class ReadmeParserTest extends TestCase
             <li>it can have arbitrary markup <a href="http://zalgo.org">and links</a></li>
             <li><img src="https://comicskingdom.com/_next/image?url=https%3A%2F%2Fwp.comicskingdom.com%2Fcomicskingdom-redesign-uploads-production%2F1995%2F12%2FFC-Sunday-8-19-Print-copy-scaled.jpg&amp;w=3840&amp;q=75" alt="the horror that awaits you" /></li>
             </ul>
-
             END;
 
         $expected_changelog = <<<'END'

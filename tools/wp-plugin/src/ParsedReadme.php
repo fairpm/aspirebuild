@@ -5,7 +5,8 @@ namespace FAIR\Forge\Tools\WpPlugin;
 
 use JsonSerializable;
 
-readonly class ParsedReadme implements JsonSerializable{
+readonly class ParsedReadme implements JsonSerializable
+{
 
     public function __construct(
         public string $name,
@@ -14,7 +15,7 @@ readonly class ParsedReadme implements JsonSerializable{
         /** @var list<string> */
         public array $tags,
         public string $requires_wp,
-        public string $tested,
+        public string $tested_up_to,
         public string $requires_php,
         /** @var list<string> */
         public array $contributors,
@@ -38,7 +39,7 @@ readonly class ParsedReadme implements JsonSerializable{
             'sections'          => $this->sections,
             'tags'              => $this->tags,
             'requires_wp'       => $this->requires_wp,
-            'tested'            => $this->tested,
+            'tested_up_to'      => $this->tested_up_to,
             'requires_php'      => $this->requires_php,
             'contributors'      => $this->contributors,
             'stable_tag'        => $this->stable_tag,
