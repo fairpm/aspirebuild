@@ -2,7 +2,7 @@
     "name": "fair-forge/static-checks",
     "description": "WordPress plugin ZIP scanner using PHPCS with WordPress coding standards",
     "type": "library",
-    "license": "GPL-2.0-or-later",
+    "license": "MIT",
     "require": {
         "php": ">=8.3",
         "ext-curl": "*",
