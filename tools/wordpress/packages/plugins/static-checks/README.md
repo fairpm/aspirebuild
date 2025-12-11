@@ -20,7 +20,7 @@ A PHP library and CLI tool for scanning WordPress plugin ZIP files using PHPCS w
 ## Installation
 
 ```bash
-cd fair-forge/tools/static-checks
+cd fair-forge/tools/wordpress/packages/plugins/static-checks
 composer install
 ```
 
@@ -90,7 +90,7 @@ php bin/static-checks plugin.zip --quiet --output=results.json
 
 require_once 'vendor/autoload.php';
 
-use FairForge\PhpCodeScan\PluginScanner;
+use FairForge\Tools\WordPress\Packages\Plugins\StaticChecks\PluginScanner;
 
 $scanner = new PluginScanner();
 

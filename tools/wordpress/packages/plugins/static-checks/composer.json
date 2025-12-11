@@ -14,12 +14,12 @@
     },
     "autoload": {
         "psr-4": {
-            "FairForge\\StaticChecks\\": "src/"
+            "FairForge\\Tools\\WordPress\\Packages\\Plugins\\StaticChecks\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "FairForge\\StaticChecks\\Tests\\": "tests/"
+            "FairForge\\Tools\\WordPress\\Packages\\Plugins\\StaticChecks\\Tests\\": "tests/"
         }
     },
     "bin": [

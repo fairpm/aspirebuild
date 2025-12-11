@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace FairForge\StaticChecks;
+namespace FairForge\Tools\WordPress\Packages\Plugins\StaticChecks;
 
 use RuntimeException;
 

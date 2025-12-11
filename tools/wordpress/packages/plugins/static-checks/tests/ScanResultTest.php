@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace FairForge\StaticChecks\Tests;
+namespace FairForge\Tools\WordPress\Packages\Plugins\StaticChecks\Tests;
 
-use FairForge\StaticChecks\ScanResult;
+use FairForge\Tools\WordPress\Packages\Plugins\StaticChecks\ScanResult;
 use PHPUnit\Framework\TestCase;
 
 /**
