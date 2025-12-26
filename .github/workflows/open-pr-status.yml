@@ -24,4 +24,3 @@ jobs:
             context: 'Initial Check',
             description: 'Setting Status to Review...'
           })
-          project-url: https://github.com/orgs/fairpm/projects/15
